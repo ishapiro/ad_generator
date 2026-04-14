@@ -1,0 +1,449 @@
+# ad-generator — Project-Level Claude Instructions
+
+## Tech Stack Summary
+
+- **Frontend**: Nuxt 3, Vue 3 Composition API, TypeScript
+- **Styling**: Tailwind CSS (exclusively — no custom CSS)
+- **Database**: Cloudflare D1 (SQLite), Drizzle ORM for schema/migrations, native D1 API at runtime
+- **Deployment**: Cloudflare Workers
+
+---
+
+## Vue / Nuxt Conventions
+
+### Always use `<script setup lang="ts">`
+
+Never use the Options API. Every page and component uses:
+
+```vue
+<script setup lang="ts">
+// ...
+</script>
+```
+
+`definePageMeta` must be the first statement in every page's script block.
+
+### Data loading with `useFetch`
+
+Use `useFetch` for declarative page-level data loading. Always supply an explicit `key:` so the Nuxt SSR cache can be targeted for invalidation.
+
+```ts
+const { data, pending } = await useFetch<ResponseType>('/api/some-resource', {
+  key: 'descriptive-page-key',
+})
+```
+
+Key naming convention: `'resource-context'` or `'resource-pagename'`, e.g. `'ad-configs-index'`. For route-dependent data, use a computed key: `key: () => \`ad-config-${idParam.value}\``.
+
+### Nuxt cache invalidation — required before navigation
+
+**After any mutation that changes data another page displays, you must invalidate the cache before navigating away.** Failure to do this causes stale data to appear on the destination page until the user manually refreshes.
+
+- `clearNuxtData('key')` — discard cached data; next fetch will re-request from server
+- `refreshNuxtData('key')` — re-fetch immediately; use when staying on the same page
+
+```ts
+// Navigating away after a mutation
+clearNuxtData('ad-configs-index')
+await navigateTo('/ad-configs')
+
+// Staying on the same page after a mutation
+await refreshNuxtData(`ad-config-${idParam.value}`)
+```
+
+If a mutation affects multiple caches, clear all affected keys.
+
+### Use `$fetch` for mutations
+
+Use `$fetch` (not `useFetch`) for imperative write operations (POST, PUT, PATCH, DELETE). Always supply the method and body explicitly. Prefer typed generics.
+
+```ts
+const res = await $fetch<{ id: number }>('/api/ad-configs', {
+  method: 'POST',
+  body: { name: name.value.trim() },
+})
+```
+
+### Route params
+
+Access route params via `useRoute()` and wrap in a computed so reactive dependencies update correctly:
+
+```ts
+const route = useRoute()
+const idParam = computed(() => route.params.id as string)
+```
+
+### Navigation
+
+Always `await` calls to `navigateTo`:
+
+```ts
+await navigateTo(`/ad-configs/${res.id}`)
+```
+
+---
+
+## Styling
+
+### Tailwind CSS only
+
+All styling must use Tailwind utility classes. Do not write custom CSS, `<style>` blocks, or inline `style=""` attributes.
+
+### Mobile-first responsive design
+
+Use Tailwind's default breakpoints with mobile-first base styles, expanding layout at `sm:` and `md:`:
+
+```html
+<div class="grid gap-4 sm:grid-cols-2">
+```
+
+### Standard UI patterns
+
+These class patterns are used consistently throughout the application. Use them for new UI rather than inventing alternatives:
+
+**Primary button**
+```
+rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors
+hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
+disabled:pointer-events-none disabled:opacity-50
+```
+
+**Secondary / outline button**
+```
+rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700
+transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500
+```
+
+**Text input**
+```
+rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm
+focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500
+```
+
+**Card / panel**
+```
+rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6
+```
+
+**Modal overlay**
+```
+fixed inset-0 z-50 flex items-center justify-center bg-black/50
+```
+
+**Error text**
+```
+text-sm text-red-600
+```
+
+**Success text**
+```
+text-sm text-emerald-600
+```
+
+### Color palette
+
+| Purpose | Color |
+|---------|-------|
+| Primary action | `blue-600` / `blue-700` |
+| Neutral / text | `slate-*` |
+| Success | `emerald-*` |
+| Warning | `amber-*` |
+| Danger | `red-*` |
+
+### Touch targets
+
+Interactive elements must meet minimum touch-target sizes. Add `min-h-[44px] min-w-[36px] touch-manipulation` to buttons and links in navigation/footer contexts.
+
+---
+
+## TypeScript
+
+### Define response types inline on pages
+
+Response types for `useFetch` are defined locally in the page that uses them, not extracted to a shared types file:
+
+```ts
+const { data } = await useFetch<{
+  config: {
+    id: number
+    name: string
+    headline: string
+  } | null
+}>('/api/ad-configs/1', { key: 'ad-config-detail' })
+```
+
+### DB row types come from Drizzle inference
+
+For server-side code, derive types from the schema rather than writing them manually:
+
+```ts
+// server/utils/db/schema.ts
+export type AdConfig = typeof adConfigs.$inferSelect
+```
+
+### Use `interface` for object shapes, `type` for unions
+
+```ts
+interface AdConfig {
+  id: number
+  name: string
+  headline: string
+}
+
+type GenerationStatus = 'pending' | 'processing' | 'complete' | 'error'
+```
+
+---
+
+## Forms
+
+### State management
+
+Simple forms use individual `ref`s. Complex forms use a single object `ref`:
+
+```ts
+// Simple
+const name = ref('')
+
+// Complex
+const form = ref({
+  name: '',
+  headline: '',
+  ctaText: '',
+})
+```
+
+### Submit handler pattern
+
+Every form submit follows this structure exactly:
+
+```ts
+const submitting = ref(false)
+const error = ref<string | null>(null)
+
+async function submit() {
+  error.value = null
+  submitting.value = true
+  try {
+    const res = await $fetch<...>('/api/...', { method: 'POST', body: { ... } })
+    clearNuxtData('affected-cache-key')
+    await navigateTo('/destination')
+  } catch (e: unknown) {
+    error.value =
+      e && typeof e === 'object' && 'data' in e
+        ? (e as { data: { message?: string } }).data?.message ?? 'Fallback error message'
+        : 'Fallback error message'
+  } finally {
+    submitting.value = false
+  }
+}
+```
+
+Disable the submit button while submitting and change its label:
+
+```html
+<button type="submit" :disabled="submitting || !name.trim()">
+  {{ submitting ? 'Saving…' : 'Save' }}
+</button>
+```
+
+Display error inline above the button:
+
+```html
+<p v-if="error" class="text-sm text-red-600">{{ error }}</p>
+```
+
+### Validation
+
+Use HTML5 attributes for basic validation (`required`, `type="email"`, `min`, `max`). Validate additional constraints in the submit handler before calling `$fetch`. The server always re-validates — client validation is for UX only.
+
+---
+
+## Server API Routes
+
+### File naming
+
+Routes use HTTP-method suffixes:
+
+```
+server/api/resource/index.get.ts
+server/api/resource/index.post.ts
+server/api/resource/[id].put.ts
+server/api/resource/[id].delete.ts
+```
+
+### Input validation
+
+Validate all input immediately after reading the body:
+
+```ts
+const body = await readBody<{ name?: string }>(event)
+const name = body?.name?.trim()
+if (!name) throw createError({ statusCode: 400, message: 'Name is required' })
+```
+
+### Errors
+
+Always use `createError` with explicit `statusCode` and `message`:
+
+```ts
+throw createError({ statusCode: 404, message: 'Ad config not found' })
+throw createError({ statusCode: 400, message: 'Invalid input' })
+```
+
+### DB queries with Drizzle
+
+The DB is available via `useDb(event)`. Use `.get()` for single-row queries, `.all()` for lists, `.run()` for mutations that don't need returning data, and `.returning()` for mutations that do.
+
+```ts
+const db = useDb(event)
+
+// Single row
+const [config] = await db.select().from(adConfigs).where(eq(adConfigs.id, id)).limit(1)
+if (!config) throw createError({ statusCode: 404, message: 'Ad config not found' })
+
+// Mutation with return
+const [updated] = await db
+  .update(adConfigs)
+  .set({ name })
+  .where(eq(adConfigs.id, id))
+  .returning()
+```
+
+---
+
+## UI Patterns
+
+### Loading and empty states
+
+Always handle both states:
+
+```html
+<div v-if="pending">Loading…</div>
+<div v-else-if="items.length === 0">No items found.</div>
+<ul v-else>…</ul>
+```
+
+### Modals
+
+Modals use `v-if` (not `v-show`), close on self-click, and are not Teleported unless overlapping z-index is a real issue:
+
+```html
+<div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" @click.self="showModal = false">
+  <div class="w-full max-w-md rounded-xl bg-white p-6 shadow-lg">
+    <!-- content -->
+  </div>
+</div>
+```
+
+### Backdrop click handler — required on every `fixed inset-0` modal
+
+**Every `fixed inset-0` overlay must have `@click.self` on the backdrop element.** Without it, clicking outside the modal panel does nothing, which traps the user.
+
+```html
+<div
+  class="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 sm:items-center sm:p-6"
+  @click.self="closeModal"
+>
+  <div class="relative w-full max-w-md rounded-t-2xl bg-white shadow-xl sm:rounded-2xl">
+    <!-- panel content -->
+  </div>
+</div>
+```
+
+`@click.self` fires only when the click target is the backdrop element itself, not a child. Clicking inside the panel never closes the modal — only clicking the dimmed area does.
+
+**Reusable modal components** emit a `close` event; pages wire it up:
+
+```html
+<!-- Component template -->
+<div class="fixed inset-0 ..." @click.self="$emit('close')">
+
+<!-- Page usage -->
+<MyModal v-if="showModal" @close="showModal = false" />
+```
+
+---
+
+## Known Build Quirks
+
+### "Duplicated imports useAppConfig" warning
+
+**Symptom:** Build prints this warning 4–5 times but succeeds:
+```
+WARN  Duplicated imports "useAppConfig", the one from "nitropack/runtime/internal/config"
+      has been ignored and "@nuxt/nitro-server/dist/runtime/utils/app-config" is used
+```
+
+**Root cause:** A bug in `unimport`'s `dedupeImports`. `@nuxt/nitro-server` registers `useAppConfig` with `priority: -1` intending it to silently lose to nitropack's entry, but the `Math.max` fallback clamps the denominator to `1`, making `priorityDiff = 0` → warning fires instead. Triggered by npm hoisting `std-env@4.x` to the top level (varies by lock-file state).
+
+**Fix already applied** in `nuxt.config.ts` — `nitro.imports.warn` filters the message. Do not remove it. Note: `warn: false` does not work (falsy falls back to `console.warn`); must be a function.
+
+---
+
+## Database Migrations (Cloudflare D1 / Drizzle)
+
+### Every migration file MUST include a tracking INSERT
+
+The custom migration runner (`npm run db:migrate`) checks `__drizzle_migrations` before executing each file. If the hash is not recorded after the DDL runs, the file will be re-executed on every subsequent migrate call, causing "duplicate column" or "table already exists" errors.
+
+**Required pattern for every `.sql` file in `drizzle/migrations/`:**
+
+```sql
+-- your DDL here (ALTER TABLE, CREATE TABLE, etc.)
+
+INSERT INTO __drizzle_migrations (hash, created_at)
+  SELECT '<NNNN_Migration_Name>', (unixepoch() * 1000)
+  WHERE NOT EXISTS (SELECT 1 FROM __drizzle_migrations WHERE hash = '<NNNN_Migration_Name>');
+```
+
+The hash value must exactly match the filename without the `.sql` extension (e.g., file `0001_Add_Some_Column.sql` → hash `0001_Add_Some_Column`).
+
+### Naming convention
+
+Files must be zero-padded sequential numbers followed by a descriptive name:
+
+```
+NNNN_Description_In_Title_Case.sql
+```
+
+Examples: `0001_Add_Status_Column.sql`, `0002_Add_R2_Key.sql`
+
+Skip no numbers. The next migration number is one higher than the highest existing file.
+
+### Running migrations
+
+```bash
+# Local D1 (in .wrangler/)
+npm run db:migrate
+
+# Remote production D1
+npm run db:migrate -- --remote
+```
+
+Always run local first, verify, then run remote.
+
+### If a migration ran without the tracking INSERT
+
+The column/table was created but the hash was never recorded. Fix by manually inserting the hash:
+
+```bash
+npx wrangler d1 execute adgen-db --local --command \
+  "INSERT INTO __drizzle_migrations (hash, created_at) SELECT 'NNNN_Name', (unixepoch() * 1000) WHERE NOT EXISTS (SELECT 1 FROM __drizzle_migrations WHERE hash = 'NNNN_Name');" \
+  --yes
+```
+
+Replace `--local` with `--remote` for production.
+
+### Schema definition
+
+Columns are defined in `server/utils/db/schema.ts` using Drizzle ORM. After adding a column to the schema, create a matching migration file. Migrations are hand-written — do not rely on Drizzle Kit auto-generation.
+
+### Deployment checklist
+
+1. Add column/table to `server/utils/db/schema.ts`
+2. Create `drizzle/migrations/NNNN_Description.sql` with DDL + tracking INSERT
+3. Run `npm run db:migrate` locally and verify no errors
+4. Build and test locally (`npm run dev`)
+5. Deploy code: `npm run deploy`
+6. Apply migration to production: `npm run db:migrate -- --remote`

@@ -1,65 +1,31 @@
 # Dependencies
 node_modules/
 
+# Nuxt build output
+.output/
+.nuxt/
+.data/
+
+# Wrangler local state (D1 persists here across builds)
+.wrangler/
+
 # Logs
-logs
 *.log
+dev.log
 npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
 
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-
-# Coverage
-coverage/
-*.lcov
-.nyc_output/
-
-# Build output
-dist/
-build/
-.next/
-out/
-.cache/
-.parcel-cache/
-.eslintcache
-*.tsbuildinfo
-
-# Env files
+# Env / secrets
 .env
 .env.*
 !.env.example
+.dev.vars
 
-# Package manager files
-.pnpm-store/
-.npm/
-.yarn/
-.yarn/cache/
-.yarn/unplugged/
-.yarn/build-state.yml
-.yarn/install-state.gz
+# OS
+.DS_Store
+Thumbs.db
 
-# Framework and tool caches
-.svelte-kit/
-.nuxt/
-.turbo/
-.vite/
-
-# Test output
-junit.xml
-
-# Editor directories and files
+# Editor
 .vscode/
 .idea/
 *.swp
 *.swo
-
-# OS files
-.DS_Store
-Thumbs.db

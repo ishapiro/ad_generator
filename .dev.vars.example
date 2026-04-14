@@ -1,0 +1,4 @@
+# Copy to .dev.vars and fill in values. Wrangler loads .dev.vars for local preview.
+NUXT_FAL_KEY=
+NUXT_IMEJIS_API_KEY=
+NUXT_IMEJIS_DESIGN_ID=

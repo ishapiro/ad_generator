@@ -1,0 +1,22 @@
+# Root wrangler config so local D1 state lives in project .wrangler/ and persists across builds
+name = "adgen"
+main = ".output/server/index.mjs"
+compatibility_date = "2025-01-20"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[[routes]]
+pattern = "adgen.cogitations.com"
+custom_domain = true
+
+[assets]
+directory = ".output/public"
+
+[[d1_databases]]
+binding = "adgen_db"
+database_name = "adgen-db"
+database_id = "ef1ec116-cdcf-49ec-8d67-dc8705cb6695"
+
+[[r2_buckets]]
+binding = "adgen_images"
+bucket_name = "adgen-images"
