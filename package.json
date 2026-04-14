@@ -1,0 +1,17 @@
+{
+  "name": "ad-generator",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@fal-ai/client": "^1.9.5",
+    "bannerbear": "^1.4.0",
+    "dotenv": "^17.4.2"
+  }
+}
