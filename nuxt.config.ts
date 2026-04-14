@@ -17,9 +17,9 @@ export default defineNuxtConfig({
   },
   css: ['~/assets/css/main.css'],
   runtimeConfig: {
-    falKey: '',           // NUXT_FAL_KEY in .dev.vars
-    imejisApiKey: '',     // NUXT_IMEJIS_API_KEY in .dev.vars
-    imejisDesignId: '',   // NUXT_IMEJIS_DESIGN_ID in .dev.vars
+    falKey: '',            // NUXT_FAL_KEY in .dev.vars
+    templatedApiKey: '',   // NUXT_TEMPLATED_API_KEY in .dev.vars
+    templatedDesignId: '', // NUXT_TEMPLATED_DESIGN_ID in .dev.vars
   },
   vite: {
     build: {

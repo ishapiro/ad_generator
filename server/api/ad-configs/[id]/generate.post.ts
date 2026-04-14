@@ -59,10 +59,10 @@ export default defineEventHandler(async (event) => {
 
   const cfg = useRuntimeConfig(event)
   const falKey = cfg.falKey as string
-  const imejisApiKey = cfg.imejisApiKey as string
-  const imejisDesignId = cfg.imejisDesignId as string
+  const templatedApiKey = cfg.templatedApiKey as string
+  const templatedDesignId = cfg.templatedDesignId as string
 
-  if (!falKey || !imejisApiKey || !imejisDesignId) {
+  if (!falKey || !templatedApiKey || !templatedDesignId) {
     throw createError({ statusCode: 500, message: 'Missing API credentials in runtime config' })
   }
 
@@ -113,49 +113,42 @@ export default defineEventHandler(async (event) => {
       }),
     ])
 
-    // STEP 2: Compose with Imejis.io
-    const renderRes = await fetch(`https://render.imejis.io/v1/${imejisDesignId}`, {
+    // STEP 2: Compose with Templated.io
+    const renderRes = await fetch('https://api.templated.io/v1/render', {
       method: 'POST',
       headers: {
-        'dma-api-key': imejisApiKey,
+        'Authorization': `Bearer ${templatedApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        ad_background: {
-          image: adBackgroundUrl,
-          opacity: 1,
-          borderColor: 'transparent',
-          backgroundColor: 'transparent',
-          padding: '0',
+        template: templatedDesignId,
+        format: 'jpg',
+        layers: {
+          ad_background: { image_url: adBackgroundUrl },
+          hero_image:    { image_url: heroImageUrl },
+          bullet_list:   { image_url: bulletListUrl },
+          headline:      { text: config.headline },
+          subheadline:   { text: config.subheadline },
+          body_copy:     { text: config.bodyText },
+          cta_text:      { text: config.ctaText },
         },
-        hero_image: {
-          image: heroImageUrl,
-          opacity: 1,
-          borderColor: 'transparent',
-          backgroundColor: 'transparent',
-          padding: '0',
-        },
-        bullet_list: {
-          image: bulletListUrl,
-          opacity: 1,
-          borderColor: 'transparent',
-          backgroundColor: 'transparent',
-          padding: '0',
-        },
-        headline:    config.headline,
-        subheadline: config.subheadline,
-        body_copy:   config.bodyText,
-        cta_text:    config.ctaText,
       }),
     })
 
     if (!renderRes.ok) {
       const errBody = await renderRes.text()
-      throw new Error(`Imejis API Error: ${renderRes.status} ${renderRes.statusText} — ${errBody}`)
+      throw new Error(`Templated API Error: ${renderRes.status} ${renderRes.statusText} — ${errBody}`)
     }
 
-    // STEP 3: Upload to R2
-    const imageBuffer = await renderRes.arrayBuffer()
+    const renderResult = await renderRes.json() as { url: string; status: string }
+    if (!renderResult.url) {
+      throw new Error(`Templated API returned no image URL: ${JSON.stringify(renderResult)}`)
+    }
+
+    // STEP 3: Fetch rendered image from Templated URL and upload to R2
+    const imageRes = await fetch(renderResult.url)
+    if (!imageRes.ok) throw new Error(`Failed to fetch rendered image: ${imageRes.status}`)
+    const imageBuffer = await imageRes.arrayBuffer()
     const r2Key = `${crypto.randomUUID()}.jpg`
     const r2 = useR2(event)
     await r2.put(r2Key, imageBuffer, { httpMetadata: { contentType: 'image/jpeg' } })
