@@ -1,4 +1,15 @@
 # Copy to .dev.vars and fill in values. Wrangler loads .dev.vars for local preview.
 NUXT_FAL_KEY=
-NUXT_IMEJIS_API_KEY=
-NUXT_IMEJIS_DESIGN_ID=
+NUXT_TEMPLATED_API_KEY=
+NUXT_TEMPLATED_DESIGN_ID=   # optional — new profiles store their own templateId
+NUXT_ADGEN_PASSWORD=
+
+# NUXT_PUBLIC_BASE_URL — leave empty for local dev.
+# Local dev automatically uses NUXT_TEMP_STORAGE_URL (the production Worker) to stage
+# uploaded images so Templated.io can fetch them. No tunnel or ngrok needed.
+# Set to https://adgen.cogitations.com only as a Wrangler secret in production.
+# NUXT_PUBLIC_BASE_URL=
+
+# NUXT_TEMP_STORAGE_URL — only used when NUXT_PUBLIC_BASE_URL is empty (local dev).
+# Default value (https://adgen.cogitations.com) is correct; only set this if self-hosting.
+# NUXT_TEMP_STORAGE_URL=https://adgen.cogitations.com

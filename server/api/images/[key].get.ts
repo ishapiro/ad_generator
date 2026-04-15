@@ -16,7 +16,7 @@ export default defineEventHandler(async (event) => {
   console.log(`[images] serving key=${key} contentType=${contentType}`)
 
   // Buffer the entire body rather than streaming — more reliable for external callers
-  const arrayBuffer = await new Response(object.body).arrayBuffer()
+  const arrayBuffer = await object.arrayBuffer()
 
   setResponseHeader(event, 'Content-Type', contentType)
   setResponseHeader(event, 'Cache-Control', 'public, max-age=31536000, immutable')

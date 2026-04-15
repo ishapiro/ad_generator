@@ -3,10 +3,10 @@ import type { H3Event } from 'h3'
 export interface AppR2Bucket {
   put(
     key: string,
-    value: ArrayBuffer,
+    value: ArrayBuffer | ArrayBufferView,
     options?: { httpMetadata?: { contentType?: string } },
   ): Promise<void>
-  get(key: string): Promise<{ body: ReadableStream; httpMetadata?: { contentType?: string } } | null>
+  get(key: string): Promise<{ arrayBuffer(): Promise<ArrayBuffer>; body: ReadableStream; httpMetadata?: { contentType?: string } } | null>
   delete(key: string): Promise<void>
 }
 

@@ -20,6 +20,13 @@
         >
           {{ saving ? 'Saving…' : 'Save Changes' }}
             </button>
+            <button
+              type="button"
+              class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              @click="showGeneratedModal = true"
+            >
+              Completed ({{ generatedAds.length }})
+            </button>
             <div class="relative" :title="templateChanged ? 'Reconfigure fields before generating' : isDirty ? 'Save your changes before generating' : undefined">
               <button
                 type="button"
@@ -197,19 +204,41 @@
         </div>
       </template>
 
-      <!-- ── Generated Ads ── -->
-      <div class="mt-10">
-        <h2 class="mb-4 text-lg font-semibold text-slate-800">Generated Ads</h2>
+    </template>
+  </div>
 
-        <div v-if="!generatedAds.length" class="rounded-xl border border-dashed border-slate-200 py-10 text-center text-slate-400">
-          No ads generated yet. Click "Generate Ad" above.
+  <!-- ── Generated Ads Modal ── -->
+  <div
+    v-if="showGeneratedModal"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+    @click.self="closeModal"
+  >
+    <div class="relative flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-xl">
+      <!-- Sticky header -->
+      <div class="flex shrink-0 items-center justify-between border-b border-slate-200 px-6 py-4">
+        <h2 class="text-lg font-semibold text-slate-800">Generated Ads</h2>
+        <button
+          type="button"
+          class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+          @click="closeModal"
+        >
+          ✕
+        </button>
+      </div>
+
+      <!-- Scrollable grid -->
+      <div class="overflow-y-auto p-6">
+        <div v-if="!generatedAds.length" class="py-10 text-center text-slate-400">
+          No ads generated yet. Click "Generate Ad" to create one.
         </div>
-
         <div v-else class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           <div
             v-for="ad in generatedAds"
             :key="ad.id"
-            class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
+            class="overflow-hidden rounded-xl border bg-white shadow-sm transition"
+            :class="ad.id === highlightedAdId
+              ? 'border-blue-500 ring-2 ring-blue-400 ring-offset-2'
+              : 'border-slate-200'"
           >
             <!-- Status bar -->
             <div class="flex flex-wrap items-center gap-2 px-4 py-3">
@@ -256,7 +285,7 @@
           </div>
         </div>
       </div>
-    </template>
+    </div>
   </div>
 </template>
 
@@ -441,6 +470,19 @@ const layersCollapsed = ref(true)
 const saving = ref(false)
 const generating = ref(false)
 const errorMsg = ref('')
+const showGeneratedModal = ref(false)
+const highlightedAdId = ref<number | null>(null)
+
+function closeModal() {
+  showGeneratedModal.value = false
+  highlightedAdId.value = null
+}
+
+onMounted(() => {
+  if (route.query.showGenerated === 'true') {
+    showGeneratedModal.value = true
+  }
+})
 
 async function save() {
   saving.value = true
@@ -472,8 +514,10 @@ async function generate() {
   generating.value = true
   errorMsg.value = ''
   try {
-    await $fetch(`/api/ad-configs/${id}/generate`, { method: 'POST' })
+    const newAd = await $fetch<GeneratedAd>(`/api/ad-configs/${id}/generate`, { method: 'POST' })
     await refresh()
+    highlightedAdId.value = newAd.id
+    showGeneratedModal.value = true
   } catch (e: unknown) {
     errorMsg.value =
       e && typeof e === 'object' && 'data' in e

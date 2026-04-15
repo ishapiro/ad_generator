@@ -45,6 +45,12 @@
           >
             Edit
           </NuxtLink>
+          <NuxtLink
+            :to="`/ads/${config.id}?showGenerated=true`"
+            class="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+          >
+            Completed
+          </NuxtLink>
           <button
             type="button"
             class="rounded bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"

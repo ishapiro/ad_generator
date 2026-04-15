@@ -19,10 +19,12 @@ export default defineNuxtConfig({
   runtimeConfig: {
     falKey: '',           // NUXT_FAL_KEY in .dev.vars
     templatedApiKey: '',  // NUXT_TEMPLATED_API_KEY in .dev.vars
-    adgenPassword: '',    // NUXT_ADGEN_PASSWORD in .env / .dev.vars
-    publicBaseUrl: '',    // NUXT_PUBLIC_BASE_URL — used to build public URLs for uploaded images
-                          // Production: https://adgen.cogitations.com
-                          // Dev: set to an ngrok/tunnel URL if testing upload→generate
+    adgenPassword: '',    // NUXT_ADGEN_PASSWORD in .dev.vars / Wrangler secret
+    publicBaseUrl: '',    // NUXT_PUBLIC_BASE_URL — production: https://adgen.cogitations.com (Wrangler secret)
+                          // Leave empty in .dev.vars; local dev uses tempStorageUrl instead
+    tempStorageUrl: 'https://adgen.cogitations.com', // NUXT_TEMP_STORAGE_URL
+                          // Only used when publicBaseUrl is empty (local dev)
+                          // Default works; only override if self-hosting on a different domain
   },
   vite: {
     build: {

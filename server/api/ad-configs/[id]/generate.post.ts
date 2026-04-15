@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { adConfigs, generatedAds } from '~/server/utils/db/schema'
-import { useR2 } from '~/server/utils/r2'
+import { mimeToExt, useR2 } from '~/server/utils/r2'
 
 interface LayerSelection {
   layer: string
@@ -67,11 +67,18 @@ export default defineEventHandler(async (event) => {
   const falKey = cfg.falKey as string
   const templatedApiKey = cfg.templatedApiKey as string
   const templatedDesignId = config.templateId ?? ''
-  const publicBaseUrl = (cfg.publicBaseUrl as string) || ''
+  const publicBaseUrl = ((cfg.publicBaseUrl as string) || '').replace(/\/$/, '')
+  const tempStorageUrl = ((cfg.tempStorageUrl as string) || 'https://adgen.cogitations.com').replace(/\/$/, '')
+  const adgenPassword = cfg.adgenPassword as string
 
   if (!falKey || !templatedApiKey || !templatedDesignId) {
     throw createError({ statusCode: 500, message: 'Missing API credentials or templateId on ad config' })
   }
+
+  const r2 = useR2(event)
+  // Tracks temp R2 keys written for this render so they can be deleted after Templated.io
+  // fetches them. A lifecycle rule on the 'tmp-' prefix is the safety-net fallback.
+  const tmpKeys: Array<{ key: string; remote: boolean }> = []
 
   // Fetch template dimensions so fal.ai images match the template's aspect ratio
   const tplRes = await fetch(`https://api.templated.io/v1/template/${templatedDesignId}`, {
@@ -129,22 +136,49 @@ export default defineEventHandler(async (event) => {
           if (!sel.r2Key) {
             console.warn(`[generate] SKIP layer '${sel.layer}': upload mode but no r2Key saved`)
           } else {
-            if (!publicBaseUrl) {
-              throw new Error(
-                `Layer '${sel.layer}' uses an uploaded image but NUXT_PUBLIC_BASE_URL is not set. ` +
-                'Set it to your deployed worker URL so Templated.io can fetch the image.',
-              )
+            const r2Object = await r2.get(sel.r2Key)
+            if (!r2Object) {
+              throw new Error(`Uploaded image not found in R2 for layer '${sel.layer}': ${sel.r2Key}`)
             }
-            const imageUrl = `${publicBaseUrl}/api/images/${sel.r2Key}`
-            console.log(`[generate] upload layer '${sel.layer}': url=${imageUrl}`)
+            const imageBytes = await r2Object.arrayBuffer()
+            const contentType = r2Object.httpMetadata?.contentType ?? 'image/png'
+            let imageUrl: string
+            if (publicBaseUrl) {
+              // Production: write temp file directly to local R2 binding, serve via this Worker's URL
+              const tmpKey = `tmp-${crypto.randomUUID()}.${mimeToExt(contentType)}`
+              await r2.put(tmpKey, imageBytes, { httpMetadata: { contentType } })
+              tmpKeys.push({ key: tmpKey, remote: false })
+              imageUrl = `${publicBaseUrl}/api/images/${tmpKey}`
+              console.log(`[generate] upload layer '${sel.layer}': staged as ${tmpKey}, url=${imageUrl}`)
+            } else {
+              // Local dev: POST image bytes to production Worker's temp-images API so
+              // Templated.io (an external service) can reach them via a public URL
+              const uploadRes = await fetch(`${tempStorageUrl}/api/temp-images`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': contentType,
+                  'X-Internal-Secret': adgenPassword,
+                  'X-Filename': sel.r2Key,
+                },
+                body: imageBytes,
+              })
+              if (!uploadRes.ok) {
+                const errText = await uploadRes.text()
+                throw new Error(`Temp upload to ${tempStorageUrl} failed: ${uploadRes.status} — ${errText}`)
+              }
+              const { key, url } = await uploadRes.json() as { key: string; url: string }
+              tmpKeys.push({ key, remote: true })
+              imageUrl = url
+              console.log(`[generate] local dev: upload layer '${sel.layer}': staged as ${key} on ${tempStorageUrl}, url=${imageUrl}`)
+            }
             templatedLayers[sel.layer] = { image_url: imageUrl }
           }
         } else if (sel.type === 'image' && sel.imageMode !== 'upload' && !sel.prompt) {
           console.warn(`[generate] SKIP layer '${sel.layer}': generate mode but no prompt saved`)
         }
       }
-      for (let i = 0; i < generateJobs.length; i++) {
-        templatedLayers[generateJobs[i].layer] = { image_url: generatedUrls[i] }
+      for (const [i, job] of generateJobs.entries()) {
+        templatedLayers[job.layer] = { image_url: generatedUrls[i]! }
       }
       console.log('[generate] templatedLayers =', JSON.stringify(templatedLayers))
     } else {
@@ -229,7 +263,6 @@ export default defineEventHandler(async (event) => {
     if (!imageRes.ok) throw new Error(`Failed to fetch rendered image: ${imageRes.status}`)
     const imageBuffer = await imageRes.arrayBuffer()
     const r2Key = `${crypto.randomUUID()}.jpg`
-    const r2 = useR2(event)
     await r2.put(r2Key, imageBuffer, { httpMetadata: { contentType: 'image/jpeg' } })
 
     const [completed] = await db
@@ -238,6 +271,20 @@ export default defineEventHandler(async (event) => {
       .where(eq(generatedAds.id, genRecord.id))
       .returning()
 
+    // Clean up temp R2 keys now that Templated.io has finished fetching them
+    if (tmpKeys.length > 0) {
+      await Promise.all(tmpKeys.map(({ key, remote }) =>
+        remote
+          ? fetch(`${tempStorageUrl}/api/temp-images/${key}`, {
+              method: 'DELETE',
+              headers: { 'X-Internal-Secret': adgenPassword },
+            })
+              .then(r => { if (!r.ok) console.warn(`[generate] failed to delete remote tmp key ${key}: ${r.status}`) })
+              .catch(e => console.warn(`[generate] failed to delete remote tmp key ${key}:`, e))
+          : r2.delete(key).catch(e => console.warn(`[generate] failed to delete tmp key ${key}:`, e)),
+      ))
+    }
+
     return completed
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err)
@@ -245,6 +292,19 @@ export default defineEventHandler(async (event) => {
       .update(generatedAds)
       .set({ status: 'error', errorMessage: message })
       .where(eq(generatedAds.id, genRecord.id))
+    // Best-effort cleanup of any temp keys written before the failure
+    if (tmpKeys.length > 0) {
+      await Promise.all(tmpKeys.map(({ key, remote }) =>
+        remote
+          ? fetch(`${tempStorageUrl}/api/temp-images/${key}`, {
+              method: 'DELETE',
+              headers: { 'X-Internal-Secret': adgenPassword },
+            })
+              .then(r => { if (!r.ok) console.warn(`[generate] failed to delete remote tmp key ${key}: ${r.status}`) })
+              .catch(e => console.warn(`[generate] failed to delete remote tmp key ${key}:`, e))
+          : r2.delete(key).catch(e => console.warn(`[generate] failed to delete tmp key ${key}:`, e)),
+      ))
+    }
     throw createError({ statusCode: 500, message })
   }
 })

@@ -427,6 +427,28 @@ WARN  Duplicated imports "useAppConfig", the one from "nitropack/runtime/interna
 
 ## Database Migrations (Cloudflare D1 / Drizzle)
 
+### Why we wrote a custom migration runner
+
+Drizzle Kit ships a migration runner (`drizzle-kit migrate`) that works well with PostgreSQL and MySQL via direct connection strings. It does not work with Cloudflare D1 because D1 has no TCP connection — it is only accessible through the Wrangler CLI locally or through the Cloudflare Workers binding at runtime. There is no way to give Drizzle Kit a connection string that points at a local `.wrangler/` SQLite file or a remote D1 database.
+
+The custom script (`scripts/db-migrate.mjs`) bridges this gap by shelling out to `wrangler d1 execute` for every SQL operation. It reuses Drizzle's `__drizzle_migrations` tracking table convention so the schema stays familiar, but drives Wrangler instead of a database driver. Drizzle ORM is still used for schema definition and type inference at runtime; only the migration *execution* is handled by the custom script.
+
+### D1 / SQLite DDL limitations
+
+D1 runs SQLite under the hood. SQLite's `ALTER TABLE` is far more restrictive than PostgreSQL or MySQL:
+
+| Operation | PostgreSQL | SQLite / D1 |
+|-----------|-----------|-------------|
+| Add column | ✓ | ✓ (only `NOT NULL` columns with a default, or nullable columns) |
+| Drop column | ✓ | ✗ — not supported |
+| Rename column | ✓ | ✗ — not supported in older SQLite versions used by D1 |
+| Change column type | ✓ | ✗ — not supported |
+| Add/drop constraint | ✓ | ✗ — not supported |
+
+To drop a column or change a type in SQLite you must: create a new table with the desired schema, copy data, drop the old table, and rename the new one. This is why **migrations are hand-written** — Drizzle Kit's auto-generated SQLite migrations sometimes emit these multi-step rewrites incorrectly, or omit steps entirely when it cannot diff accurately against a D1 database it cannot directly query. Writing migrations by hand ensures the exact SQL that runs is what was reviewed and tested.
+
+Additionally, Wrangler's `d1 execute` response envelope varies between releases (sometimes `{ results }`, sometimes `[{ results }]`). The custom script normalises both shapes so migrations don't silently fail.
+
 ### Every migration file MUST include a tracking INSERT
 
 The custom migration runner (`npm run db:migrate`) checks `__drizzle_migrations` before executing each file. If the hash is not recorded after the DDL runs, the file will be re-executed on every subsequent migrate call, causing "duplicate column" or "table already exists" errors.
