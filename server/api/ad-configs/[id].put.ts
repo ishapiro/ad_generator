@@ -14,6 +14,8 @@ export default defineEventHandler(async (event) => {
     heroImagePrompt?: string
     backgroundDescription?: string
     bulletSteps?: Array<{ icon: string; label: string }>
+    templateId?: string | null
+    templateLayers?: Array<{ layer: string; type: string; value?: string; prompt?: string }> | null
   }>(event)
 
   const db = useDb(event)
@@ -31,6 +33,10 @@ export default defineEventHandler(async (event) => {
       heroImagePrompt: body.heroImagePrompt ?? existing.heroImagePrompt,
       backgroundDescription: body.backgroundDescription ?? existing.backgroundDescription,
       bulletSteps: body.bulletSteps !== undefined ? JSON.stringify(body.bulletSteps) : existing.bulletSteps,
+      templateId: body.templateId !== undefined ? body.templateId : existing.templateId,
+      templateLayers: body.templateLayers !== undefined
+        ? (body.templateLayers ? JSON.stringify(body.templateLayers) : null)
+        : existing.templateLayers,
       updatedAt: new Date(),
     })
     .where(eq(adConfigs.id, id))

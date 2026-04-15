@@ -10,8 +10,25 @@ export const adConfigs = sqliteTable('ad_configs', {
   heroImagePrompt:       text('hero_image_prompt').notNull(),
   backgroundDescription: text('background_description').notNull(),
   bulletSteps:           text('bullet_steps').notNull(), // JSON: [{icon: string, label: string}]
+  templateId:            text('template_id'),            // Templated.io template/design ID
+  templateLayers:        text('template_layers'),         // JSON: [{layer, type, value?, prompt?}]
   createdAt:             integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
   updatedAt:             integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+})
+
+export const uploadedImages = sqliteTable('uploaded_images', {
+  id:        integer('id').primaryKey({ autoIncrement: true }),
+  r2Key:     text('r2_key').notNull(),
+  filename:  text('filename').notNull(),
+  mimeType:  text('mime_type').notNull().default('image/jpeg'),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+})
+
+export const savedPrompts = sqliteTable('saved_prompts', {
+  id:        integer('id').primaryKey({ autoIncrement: true }),
+  name:      text('name').notNull(),
+  prompt:    text('prompt').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 })
 
 export const generatedAds = sqliteTable('generated_ads', {

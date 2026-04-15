@@ -3,7 +3,7 @@
     <div class="mb-8 flex items-center justify-between">
       <h1 class="text-3xl font-bold text-slate-900">Ad Generator</h1>
       <NuxtLink
-        to="/ads/new"
+        to="/templates"
         class="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
       >
         New Ad Config
@@ -14,7 +14,7 @@
 
     <div v-else-if="!adConfigs?.length" class="rounded-lg border-2 border-dashed border-slate-200 py-20 text-center">
       <p class="text-slate-500">No ad configs yet.</p>
-      <NuxtLink to="/ads/new" class="mt-3 inline-block text-blue-600 hover:underline">
+      <NuxtLink to="/templates" class="mt-3 inline-block text-blue-600 hover:underline">
         Create your first ad config →
       </NuxtLink>
     </div>

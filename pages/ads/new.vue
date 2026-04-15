@@ -2,13 +2,13 @@
   <div class="mx-auto max-w-wide px-4 py-10">
     <div class="mb-6 flex items-center gap-3">
       <NuxtLink to="/" class="text-sm text-slate-500 hover:text-slate-700">← Back</NuxtLink>
-      <h1 class="text-2xl font-bold text-slate-900">New Ad Config</h1>
+      <h1 class="text-2xl font-bold text-slate-900">New Ad Config (Manual)</h1>
     </div>
 
     <form class="space-y-6" @submit.prevent="save">
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <!-- Left column: text fields -->
-        <div class="space-y-4 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+        <div class="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 class="text-lg font-semibold text-slate-800">Ad Content</h2>
 
           <div>
@@ -42,21 +42,23 @@
         </div>
 
         <!-- Right column: bullet steps -->
-        <div class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+        <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 class="mb-4 text-lg font-semibold text-slate-800">Bullet Steps</h2>
           <BulletStepEditor v-model="form.bulletSteps" />
         </div>
       </div>
 
+      <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
+
       <div class="flex gap-3">
         <button
           type="submit"
           :disabled="saving"
-          class="rounded bg-blue-600 px-5 py-2 font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+          class="rounded-lg bg-blue-600 px-5 py-2 font-semibold text-white hover:bg-blue-700 disabled:pointer-events-none disabled:opacity-50"
         >
           {{ saving ? 'Saving…' : 'Save' }}
         </button>
-        <NuxtLink to="/" class="rounded border border-slate-300 px-5 py-2 text-slate-700 hover:bg-slate-50">
+        <NuxtLink to="/" class="rounded-lg border border-slate-300 px-5 py-2 text-slate-700 hover:bg-slate-50">
           Cancel
         </NuxtLink>
       </div>
@@ -66,6 +68,7 @@
 
 <script setup lang="ts">
 const saving = ref(false)
+const error = ref<string | null>(null)
 
 const form = reactive({
   name: '',
@@ -87,16 +90,20 @@ const form = reactive({
 })
 
 async function save() {
+  error.value = null
   saving.value = true
   try {
     const created = await $fetch<{ id: number }>('/api/ad-configs', {
       method: 'POST',
       body: form,
     })
-    navigateTo(`/ads/${created.id}`)
+    clearNuxtData('ad-configs-index')
+    await navigateTo(`/ads/${created.id}`)
   } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : 'Failed to save'
-    alert(message)
+    error.value =
+      e && typeof e === 'object' && 'data' in e
+        ? (e as { data: { message?: string } }).data?.message ?? 'Failed to save'
+        : 'Failed to save'
   } finally {
     saving.value = false
   }

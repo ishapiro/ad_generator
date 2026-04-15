@@ -3,13 +3,15 @@ import { adConfigs } from '~/server/utils/db/schema'
 export default defineEventHandler(async (event) => {
   const body = await readBody<{
     name: string
-    headline: string
-    subheadline: string
-    bodyText: string
-    ctaText: string
-    heroImagePrompt: string
-    backgroundDescription: string
-    bulletSteps: Array<{ icon: string; label: string }>
+    headline?: string
+    subheadline?: string
+    bodyText?: string
+    ctaText?: string
+    heroImagePrompt?: string
+    backgroundDescription?: string
+    bulletSteps?: Array<{ icon: string; label: string }>
+    templateId?: string
+    templateLayers?: Array<{ layer: string; type: string; value?: string; prompt?: string }>
   }>(event)
 
   if (!body?.name?.trim()) {
@@ -30,6 +32,8 @@ export default defineEventHandler(async (event) => {
       heroImagePrompt: body.heroImagePrompt ?? '',
       backgroundDescription: body.backgroundDescription ?? '',
       bulletSteps: JSON.stringify(body.bulletSteps ?? []),
+      templateId: body.templateId ?? null,
+      templateLayers: body.templateLayers ? JSON.stringify(body.templateLayers) : null,
       createdAt: now,
       updatedAt: now,
     })
