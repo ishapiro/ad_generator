@@ -73,12 +73,22 @@
 
             <!-- Text layer -->
             <template v-if="layer.type !== 'image'">
-              <textarea
-                v-model="layerValues[layer.layer]"
-                rows="2"
-                :placeholder="`Enter text for '${layer.layer}'…`"
-                class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
+              <div class="relative">
+                <textarea
+                  v-model="layerValues[layer.layer]"
+                  rows="2"
+                  :placeholder="`Enter text for '${layer.layer}'…`"
+                  class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+                <button
+                  type="button"
+                  class="absolute right-2 top-2 rounded border border-slate-200 bg-white px-2 py-0.5 text-xs text-slate-500 hover:border-blue-400 hover:text-blue-600"
+                  title="Rewrite with AI"
+                  @click="openAiModal(layer.layer)"
+                >
+                  AI
+                </button>
+              </div>
             </template>
 
             <!-- Image layer -->
@@ -101,7 +111,7 @@
           <!-- Error + submit -->
           <p v-if="createError" class="text-sm text-red-600">{{ createError }}</p>
 
-          <div class="pt-1">
+          <div class="flex flex-wrap items-center gap-3 pt-1">
             <button
               type="button"
               :disabled="creating || !variationName.trim()"
@@ -110,11 +120,43 @@
             >
               {{ creating ? 'Creating…' : 'Create Ad Profile →' }}
             </button>
+            <button
+              v-if="textLayers.length > 0"
+              type="button"
+              class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+              @click="showGenerateCopyModal = true"
+            >
+              Generate All Copy with AI
+            </button>
           </div>
+          <p v-if="copyModel" class="text-xs text-slate-400">Copy generated using {{ copyModel }}</p>
+          <p v-if="copyError" class="text-sm text-red-600">{{ copyError }}</p>
         </div>
       </div>
     </template>
   </div>
+
+  <!-- Generate All Copy Modal -->
+  <GenerateCopyModal
+    v-if="showGenerateCopyModal"
+    :show="showGenerateCopyModal"
+    :template-name="template?.name ?? ''"
+    :fields="textLayers.map(l => ({ name: l.layer, value: layerValues[l.layer] ?? '', type: l.type }))"
+    @update:show="val => { showGenerateCopyModal = val }"
+    @generated="onCopyGenerated"
+  />
+
+  <!-- AI Copy Modal -->
+  <AiCopyModal
+    v-if="aiModalField"
+    :show="!!aiModalField"
+    :field-name="aiModalField"
+    :current-value="layerValues[aiModalField] ?? ''"
+    :template-name="template?.name ?? ''"
+    :other-fields="otherTextFieldsForModal"
+    @update:show="val => { if (!val) aiModalField = '' }"
+    @accept="val => { layerValues[aiModalField] = val; aiModalField = '' }"
+  />
 </template>
 
 <script setup lang="ts">
@@ -184,6 +226,31 @@ watch(template, (t) => {
 }, { immediate: true })
 const creating = ref(false)
 const createError = ref<string | null>(null)
+
+// AI copy generation
+const aiModalField = ref('')
+const showGenerateCopyModal = ref(false)
+const copyError = ref<string | null>(null)
+const copyModel = ref('')
+
+const textLayers = computed(() => layers.value.filter(l => l.type !== 'image'))
+
+const otherTextFieldsForModal = computed(() =>
+  textLayers.value
+    .filter(l => l.layer !== aiModalField.value)
+    .map(l => ({ name: l.layer, value: layerValues[l.layer] ?? '' })),
+)
+
+function openAiModal(layerName: string) {
+  aiModalField.value = layerName
+}
+
+function onCopyGenerated(payload: { suggestions: Array<{ name: string; value: string }>; model: string }) {
+  for (const s of payload.suggestions) {
+    if (s.name in layerValues) layerValues[s.name] = s.value
+  }
+  copyModel.value = payload.model
+}
 
 async function createVariation() {
   createError.value = null

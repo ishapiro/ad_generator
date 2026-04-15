@@ -19,6 +19,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     falKey: '',           // NUXT_FAL_KEY in .dev.vars
     templatedApiKey: '',  // NUXT_TEMPLATED_API_KEY in .dev.vars
+    geminiApiKey: '',     // NUXT_GEMINI_API_KEY in .dev.vars / Wrangler secret
     adgenPassword: '',    // NUXT_ADGEN_PASSWORD in .dev.vars / Wrangler secret
     publicBaseUrl: '',    // NUXT_PUBLIC_BASE_URL — production: https://adgen.cogitations.com (Wrangler secret)
                           // Leave empty in .dev.vars; local dev uses tempStorageUrl instead

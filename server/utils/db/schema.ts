@@ -44,6 +44,13 @@ export const savedPrompts = sqliteTable('saved_prompts', {
   createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 })
 
+export const savedBriefs = sqliteTable('saved_briefs', {
+  id:        integer('id').primaryKey({ autoIncrement: true }),
+  name:      text('name').notNull(),
+  brief:     text('brief').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+})
+
 export const generatedAds = sqliteTable('generated_ads', {
   id:           integer('id').primaryKey({ autoIncrement: true }),
   adConfigId:   integer('ad_config_id').notNull().references(() => adConfigs.id),

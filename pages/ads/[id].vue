@@ -11,14 +11,14 @@
       <div class="mb-6">
         <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
           <NuxtLink to="/ads" class="text-sm text-slate-500 hover:text-slate-700">← All Ad Profiles</NuxtLink>
-          <div class="flex gap-3">
+          <div class="flex flex-wrap gap-3">
             <button
-          type="button"
-          :disabled="saving || !isDirty"
-          class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
-          @click="save"
-        >
-          {{ saving ? 'Saving…' : 'Save Changes' }}
+              v-if="isTemplateBased && !templateChanged && textTemplateLayers.length > 0"
+              type="button"
+              class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              @click="showGenerateCopyModal = true"
+            >
+              Generate All Copy with AI
             </button>
             <button
               type="button"
@@ -27,6 +27,16 @@
             >
               Completed ({{ generatedAds.length }})
             </button>
+            <div class="relative" :title="templateChanged ? 'Reconfigure fields before generating' : isDirty ? 'Save your changes before generating' : undefined">
+              <button
+                type="button"
+                :disabled="saving || !isDirty"
+                class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                @click="save"
+              >
+                {{ saving ? 'Saving…' : 'Save Changes' }}
+              </button>
+            </div>
             <div class="relative" :title="templateChanged ? 'Reconfigure fields before generating' : isDirty ? 'Save your changes before generating' : undefined">
               <button
                 type="button"
@@ -39,6 +49,8 @@
             </div>
           </div>
         </div>
+        <p v-if="copyModel" class="text-xs text-slate-400">Copy generated using {{ copyModel }}</p>
+        <p v-if="copyError" class="text-sm text-red-600">{{ copyError }}</p>
         <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Customizing Existing Ad Profile to Generate Ad Media</p>
         <h1 class="mt-0.5 text-2xl font-bold text-slate-900">{{ form.name || 'Untitled' }}</h1>
       </div>
@@ -130,12 +142,22 @@
                 <div class="border-t border-slate-100 px-5 pb-5 pt-4">
                   <!-- Text layer -->
                   <template v-if="layer.type !== 'image'">
-                    <textarea
-                      v-model="layer.value"
-                      rows="2"
-                      :placeholder="`Text for '${layer.layer}'…`"
-                      class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    />
+                    <div class="relative">
+                      <textarea
+                        v-model="layer.value"
+                        rows="2"
+                        :placeholder="`Text for '${layer.layer}'…`"
+                        class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                      <button
+                        type="button"
+                        class="absolute right-2 top-2 rounded border border-slate-200 bg-white px-2 py-0.5 text-xs text-slate-500 hover:border-blue-400 hover:text-blue-600"
+                        title="Rewrite with AI"
+                        @click="aiModalLayer = layer.layer"
+                      >
+                        AI
+                      </button>
+                    </div>
                   </template>
 
                   <!-- Image layer -->
@@ -172,19 +194,31 @@
               <input v-model="form.name" type="text" class="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
             </div>
             <div>
-              <label class="mb-1 block text-sm font-medium text-slate-700">Headline</label>
+              <div class="mb-1 flex items-center justify-between">
+                <label class="text-sm font-medium text-slate-700">Headline</label>
+                <button type="button" class="rounded border border-slate-200 bg-white px-2 py-0.5 text-xs text-slate-500 hover:border-blue-400 hover:text-blue-600" @click="openLegacyAiModal('Headline', 'headline')">AI</button>
+              </div>
               <input v-model="form.headline" type="text" class="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
             </div>
             <div>
-              <label class="mb-1 block text-sm font-medium text-slate-700">Subheadline</label>
+              <div class="mb-1 flex items-center justify-between">
+                <label class="text-sm font-medium text-slate-700">Subheadline</label>
+                <button type="button" class="rounded border border-slate-200 bg-white px-2 py-0.5 text-xs text-slate-500 hover:border-blue-400 hover:text-blue-600" @click="openLegacyAiModal('Subheadline', 'subheadline')">AI</button>
+              </div>
               <input v-model="form.subheadline" type="text" class="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
             </div>
             <div>
-              <label class="mb-1 block text-sm font-medium text-slate-700">Body Copy</label>
+              <div class="mb-1 flex items-center justify-between">
+                <label class="text-sm font-medium text-slate-700">Body Copy</label>
+                <button type="button" class="rounded border border-slate-200 bg-white px-2 py-0.5 text-xs text-slate-500 hover:border-blue-400 hover:text-blue-600" @click="openLegacyAiModal('Body Copy', 'bodyText')">AI</button>
+              </div>
               <textarea v-model="form.bodyText" rows="3" class="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
             </div>
             <div>
-              <label class="mb-1 block text-sm font-medium text-slate-700">CTA Button Text</label>
+              <div class="mb-1 flex items-center justify-between">
+                <label class="text-sm font-medium text-slate-700">CTA Button Text</label>
+                <button type="button" class="rounded border border-slate-200 bg-white px-2 py-0.5 text-xs text-slate-500 hover:border-blue-400 hover:text-blue-600" @click="openLegacyAiModal('CTA Button Text', 'ctaText')">AI</button>
+              </div>
               <input v-model="form.ctaText" type="text" class="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
             </div>
             <div>
@@ -205,6 +239,52 @@
       </template>
 
     </template>
+  </div>
+
+  <!-- ── Generate All Copy Modal ── -->
+  <GenerateCopyModal
+    v-if="showGenerateCopyModal"
+    :show="showGenerateCopyModal"
+    :template-name="config?.name ?? ''"
+    :fields="textTemplateLayers.map(l => ({ name: l.layer, value: l.value ?? '', type: l.type }))"
+    @update:show="val => { showGenerateCopyModal = val }"
+    @generated="onCopyGenerated"
+  />
+
+  <!-- ── AI Copy Modal ── -->
+  <AiCopyModal
+    v-if="aiModalLayer"
+    :show="!!aiModalLayer"
+    :field-name="aiModalLabel || aiModalLayer"
+    :current-value="aiModalCurrentValue"
+    :template-name="config?.name ?? ''"
+    :other-fields="aiOtherFields"
+    @update:show="val => { if (!val) { aiModalLayer = ''; aiModalLabel = '' } }"
+    @accept="applyAiSuggestion"
+  />
+
+  <!-- ── Image Viewer Modal ── -->
+  <div
+    v-if="viewingImageKey"
+    class="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4"
+    @click.self="viewingImageKey = null"
+  >
+    <div style="width: 80vw; height: 80vh; position: relative; display: flex; flex-direction: column; background: #fff; border-radius: 0.75rem; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);">
+      <!-- Close button -->
+      <button
+        type="button"
+        style="position: absolute; top: 0.75rem; right: 0.75rem; z-index: 10; background: rgba(255,255,255,0.9); border-radius: 0.5rem; padding: 0.375rem 0.625rem; font-size: 0.875rem; line-height: 1; color: #475569; border: 1px solid #e2e8f0;"
+        @click="viewingImageKey = null"
+      >
+        ✕ Close
+      </button>
+      <!-- Image -->
+      <img
+        :src="`/api/images/${viewingImageKey}`"
+        alt="Generated ad"
+        style="display: block; width: 100%; height: 100%; object-fit: contain; max-width: none;"
+      />
+    </div>
   </div>
 
   <!-- ── Generated Ads Modal ── -->
@@ -255,9 +335,13 @@
               <span class="text-xs text-slate-400">{{ new Date(ad.createdAt ?? '').toLocaleString() }}</span>
               <div class="ml-auto flex gap-3">
                 <template v-if="ad.status === 'complete' && ad.r2Key">
-                  <a :href="`/api/images/${ad.r2Key}`" target="_blank" class="text-sm text-blue-600 hover:underline">
-                    View
-                  </a>
+                  <button
+                    type="button"
+                    class="text-sm text-blue-600 hover:underline"
+                    @click="viewingImageKey = ad.r2Key"
+                  >
+                    Zoom
+                  </button>
                   <a :href="`/api/images/${ad.r2Key}`" target="_blank" download class="text-sm text-blue-600 hover:underline">
                     Download
                   </a>
@@ -472,6 +556,69 @@ const generating = ref(false)
 const errorMsg = ref('')
 const showGeneratedModal = ref(false)
 const highlightedAdId = ref<number | null>(null)
+const viewingImageKey = ref<string | null>(null)
+
+// ── AI copy generation ──
+const aiModalLayer = ref('')   // template layer name OR legacy field key, '' = closed
+const aiModalLabel = ref('')   // human-readable label for legacy fields
+const showGenerateCopyModal = ref(false)
+const copyError = ref('')
+const copyModel = ref('')
+
+// For template-based: the value in the currently open layer
+const aiModalCurrentValue = computed(() => {
+  if (!aiModalLayer.value) return ''
+  if (isTemplateBased.value) {
+    return templateLayers.value.find(l => l.layer === aiModalLayer.value)?.value ?? ''
+  }
+  // Legacy: aiModalLayer holds the form field key
+  return (form as Record<string, unknown>)[aiModalLayer.value] as string ?? ''
+})
+
+const textTemplateLayers = computed(() =>
+  templateLayers.value.filter(l => l.type !== 'image'),
+)
+
+// Other fields passed as context to the AI modal
+const aiOtherFields = computed(() => {
+  if (isTemplateBased.value) {
+    return textTemplateLayers.value
+      .filter(l => l.layer !== aiModalLayer.value)
+      .map(l => ({ name: l.layer, value: l.value ?? '' }))
+  }
+  // Legacy: provide all text fields except the one being edited
+  const legacyFields: Array<{ name: string; value: string }> = [
+    { name: 'Headline', value: form.headline },
+    { name: 'Subheadline', value: form.subheadline },
+    { name: 'Body Copy', value: form.bodyText },
+    { name: 'CTA Button Text', value: form.ctaText },
+  ]
+  return legacyFields.filter(f => f.name !== (aiModalLabel.value || aiModalLayer.value))
+})
+
+function openLegacyAiModal(label: string, fieldKey: string) {
+  aiModalLabel.value = label
+  aiModalLayer.value = fieldKey
+}
+
+function applyAiSuggestion(value: string) {
+  if (isTemplateBased.value) {
+    const layer = templateLayers.value.find(l => l.layer === aiModalLayer.value)
+    if (layer) layer.value = value
+  } else {
+    ;(form as Record<string, unknown>)[aiModalLayer.value] = value
+  }
+  aiModalLayer.value = ''
+  aiModalLabel.value = ''
+}
+
+function onCopyGenerated(payload: { suggestions: Array<{ name: string; value: string }>; model: string }) {
+  for (const s of payload.suggestions) {
+    const layer = templateLayers.value.find(l => l.layer === s.name)
+    if (layer) layer.value = s.value
+  }
+  copyModel.value = payload.model
+}
 
 function closeModal() {
   showGeneratedModal.value = false
