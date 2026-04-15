@@ -17,7 +17,7 @@
         build ad profiles, and generate polished ads — all in one place.
       </p>
 
-      <div class="mt-12 grid gap-6 sm:grid-cols-2">
+      <div class="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <!-- Media card -->
         <NuxtLink
           to="/media"
@@ -61,6 +61,29 @@
             Open Ad Profiles →
           </span>
         </NuxtLink>
+        <!-- templated.io card -->
+        <a
+          href="https://app.templated.io"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="group rounded-2xl border border-slate-200 bg-white p-8 shadow-sm transition-shadow hover:shadow-md"
+        >
+          <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
+          </div>
+          <h2 class="text-xl font-semibold text-slate-900 group-hover:text-violet-700">
+            templated.io
+          </h2>
+          <p class="mt-2 text-sm text-slate-500">
+            Design and edit ad templates in the Templated.io visual editor.
+            Create layouts, position elements, and publish templates for use in Ad Profiles.
+          </p>
+          <span class="mt-5 inline-block text-sm font-medium text-violet-600 group-hover:underline">
+            Open templated.io →
+          </span>
+        </a>
       </div>
     </div>
   </div>

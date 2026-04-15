@@ -67,6 +67,14 @@
               >
                 Media
               </NuxtLink>
+              <a
+                href="https://app.templated.io"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="text-sm font-medium text-slate-600 hover:text-slate-900"
+              >
+                templated.io
+              </a>
               <NuxtLink
                 to="/about"
                 class="text-sm font-medium text-slate-600 hover:text-slate-900"
