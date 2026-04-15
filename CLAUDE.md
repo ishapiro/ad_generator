@@ -85,9 +85,11 @@ await navigateTo(`/ad-configs/${res.id}`)
 
 ## Styling
 
-### Tailwind CSS only
+### Tailwind CSS only (with one exception — images)
 
 All styling must use Tailwind utility classes. Do not write custom CSS, `<style>` blocks, or inline `style=""` attributes.
+
+**Exception: `<img>` elements displaying external thumbnails must use raw inline `style=""` — see the Image Display section below.**
 
 ### Mobile-first responsive design
 
@@ -362,6 +364,48 @@ Modals use `v-if` (not `v-show`), close on self-click, and are not Teleported un
 <!-- Page usage -->
 <MyModal v-if="showModal" @close="showModal = false" />
 ```
+
+---
+
+## Image Display
+
+### Tailwind preflight breaks image sizing — use raw inline styles
+
+**Root cause:** Tailwind preflight globally injects `max-width: 100%; height: auto` on every `<img>` element. This loads the moment Tailwind is used anywhere in the project. It cannot be overridden by Tailwind utility classes (`w-full`, `h-auto`, `max-w-none`) or Vue `:style="{...}"` bindings — those approaches proved unreliable in practice.
+
+**The only reliable fix:** use a static `style=""` attribute directly on the `<img>` element with `max-width: none` to defeat the preflight rule. Vue dynamic bindings (`:src`, `:alt`) can still be mixed with a static `style=""` on the same element.
+
+**Do NOT:**
+- Use Tailwind classes on the `<img>` element (`w-full`, `h-auto`, `max-w-none`, etc.)
+- Use Vue `:style="{...}"` binding for image sizing
+- Set HTML `width` and `height` attributes to API-reported canvas dimensions when the actual image file has different dimensions — the browser uses those attributes for `aspect-ratio: auto` which conflicts with the loaded image ratio
+
+**Working pattern for thumbnail images in a grid or detail view:**
+
+```html
+<!-- Container: static style="" for border/radius/overflow, NOT Tailwind classes -->
+<div style="overflow: hidden; border-radius: 0.75rem; border: 1px solid #e2e8f0;">
+  <img
+    :src="item.thumbnail"
+    :alt="item.name"
+    style="display: block; width: 100%; height: auto; max-width: none;"
+  />
+</div>
+```
+
+To constrain the size of the thumbnail (e.g. on a detail page), add `max-width` to the container:
+
+```html
+<div style="max-width: 320px; overflow: hidden; border-radius: 0.75rem; border: 1px solid #e2e8f0;">
+  <img
+    :src="item.thumbnail"
+    :alt="item.name"
+    style="display: block; width: 100%; height: auto; max-width: none;"
+  />
+</div>
+```
+
+This mirrors the pattern from plain HTML and is the only approach that was confirmed working after extensive debugging. Do not revisit Tailwind-class-based image sizing without first reading the debugging history for this project.
 
 ---
 
