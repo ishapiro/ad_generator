@@ -9,7 +9,7 @@
     <template v-else>
       <!-- ── Header ── -->
       <div class="mb-6 flex flex-wrap items-center gap-3">
-        <NuxtLink to="/" class="text-sm text-slate-500 hover:text-slate-700">← All Variations</NuxtLink>
+        <NuxtLink to="/" class="text-sm text-slate-500 hover:text-slate-700">← All Ad Profiles</NuxtLink>
 
         <span v-if="config.templateId" class="text-sm text-slate-300">|</span>
         <NuxtLink
@@ -69,7 +69,7 @@
           <div class="space-y-4">
             <!-- Variation name -->
             <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <label class="mb-1 block text-sm font-semibold text-slate-700">Variation Name</label>
+              <label class="mb-1 block text-sm font-semibold text-slate-700">Ad Profile Name</label>
               <input
                 v-model="form.name"
                 type="text"
@@ -294,6 +294,8 @@ interface GeneratedAd {
 interface TemplatedTemplate {
   id: string
   thumbnail?: string
+  width?: number
+  height?: number
 }
 
 const route = useRoute()

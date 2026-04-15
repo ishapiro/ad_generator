@@ -2,9 +2,12 @@
   <div class="mx-auto max-w-wide px-4 py-10">
     <div class="mb-8 flex items-center justify-between">
       <div>
-        <NuxtLink to="/" class="text-sm text-slate-500 hover:text-slate-700">← Back to Ad Configs</NuxtLink>
+        <NuxtLink to="/" class="text-sm text-slate-500 hover:text-slate-700">← Back to Ad Profiles</NuxtLink>
         <h1 class="mt-1 text-3xl font-bold text-slate-900">Choose a Template</h1>
-        <p class="mt-1 text-sm text-slate-500">Select a Templated.io design to use as the base for your ad.</p>
+        <p class="mt-1 text-sm text-slate-500">
+          Templates define the visual layout of your ad — where headlines, images, and other elements are positioned.
+          Select one to configure its content and create a new Ad Profile.
+        </p>
       </div>
     </div>
 
@@ -27,11 +30,14 @@
       >
         <div style="overflow: hidden; border-radius: 0.75rem; border: 1px solid #e2e8f0;">
           <img
-            v-if="tpl.thumbnail"
+            v-if="tpl.thumbnail && tpl.thumbnailReady"
             :src="tpl.thumbnail"
             :alt="tpl.name"
             style="display: block; width: 100%; height: auto; max-width: none;"
           />
+          <div v-else-if="tpl.thumbnail && !tpl.thumbnailReady" class="thumbnail-empty" style="background:#fffbeb; color:#b45309;">
+            Thumbnail generating — please wait, then refresh.
+          </div>
           <div v-else class="thumbnail-empty">No preview</div>
         </div>
         <p class="mt-2 font-semibold text-slate-900 group-hover:text-blue-600">{{ tpl.name }}</p>
@@ -49,6 +55,7 @@ interface TemplatedTemplate {
   id: string
   name: string
   thumbnail?: string
+  thumbnailReady?: boolean
   width?: number
   height?: number
   layersCount?: number

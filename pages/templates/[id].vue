@@ -11,8 +11,13 @@
     </div>
 
     <template v-else-if="template">
-      <h1 class="mb-1 text-2xl font-bold text-slate-900">{{ template.name }}</h1>
-      <p class="mb-8 text-sm text-slate-400">
+      <NuxtLink to="/" class="mb-4 inline-block text-sm text-slate-500 hover:text-slate-700">← Back to Ad Profiles</NuxtLink>
+      <h1 class="mb-1 text-2xl font-bold text-slate-900">Create Ad Profile — {{ template.name }}</h1>
+      <p class="mb-2 text-sm text-slate-500">
+        Fill in the fields below to configure this template's content. Text layers accept your ad copy directly.
+        Image layers let you either upload an image or write a prompt for AI generation — the image is generated when you click <strong class="font-medium">Generate Ad</strong> from the Ad Profile.
+      </p>
+      <p class="mb-8 text-xs text-slate-400">
         {{ template.width ?? '?' }} × {{ template.height ?? '?' }}px
         <span v-if="layers.length" class="ml-1">· {{ layers.length }} layers</span>
       </p>
@@ -30,7 +35,7 @@
             <div v-else class="flex h-48 items-center justify-center text-sm text-slate-400">No preview</div>
           </div>
           <p class="mt-3 text-xs text-slate-400">
-            Fill in the layer values on the right. Image layers use an AI prompt — fal.ai will generate the image when you click Generate.
+            Template preview. The actual ad is rendered by Templated.io using your configured values.
           </p>
         </div>
 
@@ -38,15 +43,15 @@
         <div class="space-y-4">
           <!-- Variation name -->
           <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <label class="mb-1 block text-sm font-semibold text-slate-700">Variation Name <span class="text-red-500">*</span></label>
+            <label class="mb-1 block text-sm font-semibold text-slate-700">Ad Profile Name <span class="text-red-500">*</span></label>
             <input
               v-model="variationName"
               type="text"
-              placeholder="e.g. Backtick – Dark Navy v1"
+              placeholder="e.g. Spring Sale – Dark Navy"
               required
               class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
-            <p class="mt-1 text-xs text-slate-400">A label to identify this variation in your list.</p>
+            <p class="mt-1 text-xs text-slate-400">A descriptive name to identify this ad profile in your list.</p>
           </div>
 
           <!-- One card per layer -->
@@ -103,7 +108,7 @@
               class="rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:pointer-events-none disabled:opacity-50"
               @click="createVariation"
             >
-              {{ creating ? 'Creating…' : 'Create Variation →' }}
+              {{ creating ? 'Creating…' : 'Create Ad Profile →' }}
             </button>
           </div>
         </div>
@@ -203,13 +208,13 @@ async function createVariation() {
         }
       })
 
-    const created = await $fetch<{ id: number }>('/api/ad-configs', {
+    await $fetch('/api/ad-configs', {
       method: 'POST',
       body: { name: variationName.value.trim(), templateId: id, templateLayers },
     })
 
     clearNuxtData('ad-configs-index')
-    await navigateTo(`/ads/${created.id}`)
+    await navigateTo('/')
   } catch (e: unknown) {
     createError.value =
       e && typeof e === 'object' && 'data' in e

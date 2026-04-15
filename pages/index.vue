@@ -1,21 +1,27 @@
 <template>
   <div class="mx-auto max-w-wide px-4 py-10">
-    <div class="mb-8 flex items-center justify-between">
-      <h1 class="text-3xl font-bold text-slate-900">Ad Generator</h1>
+    <div class="mb-4 flex items-center justify-between">
+      <h1 class="text-3xl font-bold text-slate-900">Ad Profiles</h1>
       <NuxtLink
         to="/templates"
         class="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
       >
-        New Ad Config
+        + New Ad Profile
       </NuxtLink>
     </div>
+
+    <p class="mb-8 max-w-2xl text-sm text-slate-500">
+      Ad Profiles use <strong class="font-medium text-slate-700">Templated.io</strong> templates to define the layout of your ad — where headlines, images, and other elements appear.
+      Each profile stores a template selection plus default field values (text copy and AI image prompts).
+      From any profile you can generate ad images, adjust content, and regenerate as many times as you like.
+    </p>
 
     <div v-if="pending" class="text-slate-500">Loading…</div>
 
     <div v-else-if="!adConfigs?.length" class="rounded-lg border-2 border-dashed border-slate-200 py-20 text-center">
-      <p class="text-slate-500">No ad configs yet.</p>
+      <p class="text-slate-500">No ad profiles yet.</p>
       <NuxtLink to="/templates" class="mt-3 inline-block text-blue-600 hover:underline">
-        Create your first ad config →
+        Create your first ad profile →
       </NuxtLink>
     </div>
 
@@ -87,7 +93,7 @@ async function quickGenerate(id: number) {
 }
 
 async function deleteConfig(id: number) {
-  if (!confirm('Delete this ad config and all its generated ads?')) return
+  if (!confirm('Delete this ad profile and all its generated ads?')) return
   await $fetch(`/api/ad-configs/${id}`, { method: 'DELETE' })
   refresh()
 }
