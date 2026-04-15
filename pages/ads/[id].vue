@@ -50,12 +50,14 @@
         <div class="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_2fr]">
           <!-- Left: template thumbnail -->
           <div class="xl:sticky xl:top-6 xl:self-start">
-            <div class="overflow-hidden rounded-xl border border-slate-200 bg-slate-100 p-2">
+            <div class="overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
               <img
                 v-if="templateThumbnail"
                 :src="templateThumbnail"
                 alt="Template preview"
-                class="mx-auto block w-full h-auto rounded-lg"
+                :width="templateWidth ?? 1080"
+                :height="templateHeight ?? 1080"
+                class="w-full h-auto"
               />
               <div v-else class="flex h-40 items-center justify-center text-xs text-slate-400">
                 Loading preview…
@@ -319,6 +321,8 @@ const templateLayers = ref<LayerSelection[]>([])
 
 // Fetch the template thumbnail if this is a template-based config
 const templateThumbnail = ref<string | null>(null)
+const templateWidth = ref<number | null>(null)
+const templateHeight = ref<number | null>(null)
 
 watch(config, async (c) => {
   if (!c) return
@@ -335,6 +339,8 @@ watch(config, async (c) => {
     try {
       const tpl = await $fetch<TemplatedTemplate>(`/api/templated/templates/${c.templateId}`)
       templateThumbnail.value = tpl.thumbnail ?? null
+      templateWidth.value = tpl.width ?? null
+      templateHeight.value = tpl.height ?? null
     } catch {
       // thumbnail is optional — don't block the page
     }

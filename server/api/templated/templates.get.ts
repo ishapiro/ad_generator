@@ -10,5 +10,9 @@ export default defineEventHandler(async (event) => {
     const err = await res.text()
     throw createError({ statusCode: res.status, message: `Templated API error: ${err}` })
   }
-  return res.json()
+  const data = await res.json() as Array<{ id: string; name: string; thumbnail?: string }>
+  for (const tpl of data) {
+    console.log(`[templated] template "${tpl.name}" thumbnail: ${tpl.thumbnail ?? '(none)'}`)
+  }
+  return data
 })

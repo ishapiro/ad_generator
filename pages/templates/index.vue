@@ -25,17 +25,19 @@
         :to="`/templates/${tpl.id}`"
         class="group block transition hover:opacity-90"
       >
-        <img
-          v-if="tpl.thumbnail"
-          :src="tpl.thumbnail"
-          :alt="tpl.name"
-          class="block w-full h-auto rounded-xl shadow-sm"
-        />
-        <div v-else class="flex h-48 items-center justify-center rounded-xl bg-slate-100 text-sm text-slate-400">No preview</div>
+        <div style="overflow: hidden; border-radius: 0.75rem; border: 1px solid #e2e8f0;">
+          <img
+            v-if="tpl.thumbnail"
+            :src="tpl.thumbnail"
+            :alt="tpl.name"
+            style="display: block; width: 100%; height: auto; max-width: none;"
+          />
+          <div v-else class="thumbnail-empty">No preview</div>
+        </div>
         <p class="mt-2 font-semibold text-slate-900 group-hover:text-blue-600">{{ tpl.name }}</p>
         <p class="text-xs text-slate-400">
           {{ tpl.width ?? '?' }} × {{ tpl.height ?? '?' }}px
-          <span v-if="tpl.layersCount" class="ml-2">{{ tpl.layersCount }} layers</span>
+          <span v-if="tpl.layersCount" class="ml-2">· {{ tpl.layersCount }} layers</span>
         </p>
       </NuxtLink>
     </div>
@@ -56,3 +58,28 @@ interface TemplatedTemplate {
 const { data, pending, error } = await useFetch<TemplatedTemplate[]>('/api/templated/templates')
 const templates = computed(() => data.value ?? [])
 </script>
+
+<style scoped>
+.thumbnail-wrap {
+  overflow: hidden;
+  border-radius: 0.75rem;
+  border: 1px solid #e2e8f0;
+}
+
+.thumbnail-img {
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+  max-width: 100% !important;
+}
+
+.thumbnail-empty {
+  display: flex;
+  height: 12rem;
+  align-items: center;
+  justify-content: center;
+  background-color: #f1f5f9;
+  font-size: 0.875rem;
+  color: #94a3b8;
+}
+</style>

@@ -20,12 +20,12 @@
       <div class="grid grid-cols-1 gap-8 xl:grid-cols-2">
         <!-- Left: template preview — sticky so it stays in view while scrolling layers -->
         <div class="xl:sticky xl:top-6 xl:self-start">
-          <div class="overflow-hidden rounded-xl border border-slate-200 bg-slate-100 p-2">
+          <div style="max-width: 320px; overflow: hidden; border-radius: 0.75rem; border: 1px solid #e2e8f0; background: #f8fafc;">
             <img
               v-if="template.thumbnail"
               :src="template.thumbnail"
               :alt="template.name"
-              class="mx-auto block w-full h-auto rounded-lg"
+              style="display: block; width: 100%; height: auto; max-width: none;"
             />
             <div v-else class="flex h-48 items-center justify-center text-sm text-slate-400">No preview</div>
           </div>
@@ -192,14 +192,14 @@ async function createVariation() {
           : !!layerValues[l.layer]?.trim()
       })
       .map(l => {
-        if (l.type !== 'image') return { layer: l.layer, type: l.type, value: layerValues[l.layer].trim() }
+        if (l.type !== 'image') return { layer: l.layer, type: l.type, value: layerValues[l.layer]?.trim() }
         return {
           layer: l.layer,
           type: l.type,
           imageMode: layerModes[l.layer],
           ...(layerModes[l.layer] === 'upload'
             ? { r2Key: layerR2Keys[l.layer] }
-            : { prompt: layerValues[l.layer].trim() }),
+            : { prompt: layerValues[l.layer]?.trim() }),
         }
       })
 
