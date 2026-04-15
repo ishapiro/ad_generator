@@ -8,41 +8,52 @@
 
     <template v-else>
       <!-- ── Header ── -->
-      <div class="mb-6 flex flex-wrap items-center gap-3">
-        <NuxtLink to="/" class="text-sm text-slate-500 hover:text-slate-700">← All Ad Profiles</NuxtLink>
-
-        <span v-if="config.templateId" class="text-sm text-slate-300">|</span>
-        <NuxtLink
-          v-if="config.templateId"
-          :to="`/templates/${config.templateId}`"
-          class="text-sm text-blue-500 hover:underline"
-        >
-          Template ↗
-        </NuxtLink>
-
-        <h1 class="flex-1 text-xl font-bold text-slate-900">{{ form.name || 'Untitled' }}</h1>
-
-        <button
+      <div class="mb-6">
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <NuxtLink to="/" class="text-sm text-slate-500 hover:text-slate-700">← All Ad Profiles</NuxtLink>
+          <div class="flex gap-3">
+            <button
           type="button"
-          :disabled="saving"
-          class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+          :disabled="saving || !isDirty"
+          class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
           @click="save"
         >
           {{ saving ? 'Saving…' : 'Save Changes' }}
-        </button>
-        <button
-          type="button"
-          :disabled="generating"
-          class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
-          @click="generate"
-        >
-          {{ generating ? 'Generating…' : 'Generate Ad' }}
-        </button>
+            </button>
+            <div class="relative" :title="templateChanged ? 'Reconfigure fields before generating' : isDirty ? 'Save your changes before generating' : undefined">
+              <button
+                type="button"
+                :disabled="generating || isDirty || templateChanged"
+                class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                @click="generate"
+              >
+                {{ generating ? 'Generating…' : 'Generate Ad' }}
+              </button>
+            </div>
+          </div>
+        </div>
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Customizing Existing Ad Profile to Generate Ad Media</p>
+        <h1 class="mt-0.5 text-2xl font-bold text-slate-900">{{ form.name || 'Untitled' }}</h1>
       </div>
 
       <!-- Error banner -->
       <div v-if="errorMsg" class="mb-4 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
         {{ errorMsg }}
+      </div>
+
+      <!-- Template-changed warning -->
+      <div v-if="templateChanged" class="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-4">
+        <p class="text-sm font-semibold text-amber-900">The Templated.io template has changed since this Ad Profile was created.</p>
+        <p class="mt-1 text-sm text-amber-800">
+          The template's fields no longer match what's stored in this profile. You'll need to remap your content to the updated layout before generating a new ad.
+          Your existing values will be carried over wherever field names still match.
+        </p>
+        <NuxtLink
+          :to="`/ads/reconfigure/${id}`"
+          class="mt-3 inline-block rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700"
+        >
+          Reconfigure Fields →
+        </NuxtLink>
       </div>
 
       <!-- ══ TEMPLATE-BASED EDITOR ══ -->
@@ -63,6 +74,7 @@
                 Loading preview…
               </div>
             </div>
+            <p class="mt-2 text-center text-xs text-slate-400">Original Templated.io Template</p>
           </div>
 
           <!-- Right: layer editor -->
@@ -89,52 +101,55 @@
               </button>
             </div>
 
-            <!-- One card per layer -->
-            <div
-              v-for="layer in templateLayers"
-              :key="layer.layer"
-              class="rounded-xl border border-slate-200 bg-white shadow-sm"
-            >
-              <!-- Card header -->
-              <div class="flex items-center gap-2 px-5 py-3">
-                <span
-                  class="shrink-0 rounded px-2 py-0.5 text-xs font-semibold uppercase tracking-wide"
-                  :class="layer.type === 'image' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'"
-                >
-                  {{ layer.type === 'image' ? 'Image' : 'Text' }}
-                </span>
-                <span class="font-medium text-slate-800">{{ layer.layer }}</span>
-              </div>
+            <!-- One card per layer — entire section hidden when collapsed -->
+            <template v-if="!layersCollapsed">
+              <div
+                v-for="layer in templateLayers"
+                :key="layer.layer"
+                class="rounded-xl border border-slate-200 bg-white shadow-sm"
+              >
+                <!-- Card header -->
+                <div class="flex items-center gap-2 px-5 py-3">
+                  <span
+                    class="shrink-0 rounded px-2 py-0.5 text-xs font-semibold uppercase tracking-wide"
+                    :class="layer.type === 'image' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'"
+                  >
+                    {{ layer.type === 'image' ? 'Image' : 'Text' }}
+                  </span>
+                  <span class="font-medium text-slate-800">{{ layer.layer }}</span>
+                </div>
 
-              <!-- Expandable body -->
-              <div v-if="!layersCollapsed" class="border-t border-slate-100 px-5 pb-5 pt-4">
-                <!-- Text layer -->
-                <template v-if="layer.type !== 'image'">
-                  <textarea
-                    v-model="layer.value"
-                    rows="2"
-                    :placeholder="`Text for '${layer.layer}'…`"
-                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
-                </template>
+                <!-- Card body -->
+                <div class="border-t border-slate-100 px-5 pb-5 pt-4">
+                  <!-- Text layer -->
+                  <template v-if="layer.type !== 'image'">
+                    <textarea
+                      v-model="layer.value"
+                      rows="2"
+                      :placeholder="`Text for '${layer.layer}'…`"
+                      class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                  </template>
 
-                <!-- Image layer -->
-                <template v-else>
-                  <ImageLayerInput
-                    :layer-name="layer.layer"
-                    :prompt="layer.prompt ?? ''"
-                    :r2-key="layer.r2Key ?? ''"
-                    :image-mode="(layer.imageMode as 'generate' | 'upload') ?? 'generate'"
-                    :saved-prompts="promptLibrary"
-                    @update:prompt="layer.prompt = $event"
-                    @update:r2-key="layer.r2Key = $event"
-                    @update:image-mode="layer.imageMode = $event"
-                    @prompt-saved="promptLibrary.unshift($event)"
-                    @prompt-deleted="promptLibrary = promptLibrary.filter(p => p.id !== $event)"
-                  />
-                </template>
+                  <!-- Image layer -->
+                  <template v-else>
+                    <ImageLayerInput
+                      :layer-name="layer.layer"
+                      :prompt="layer.prompt ?? ''"
+                      :r2-key="layer.r2Key ?? ''"
+                      :image-mode="(layer.imageMode as 'generate' | 'upload') ?? 'generate'"
+                      :saved-prompts="promptLibrary"
+                      :profile-id="id"
+                      @update:prompt="layer.prompt = $event"
+                      @update:r2-key="layer.r2Key = $event"
+                      @update:image-mode="layer.imageMode = $event"
+                      @prompt-saved="promptLibrary.unshift($event)"
+                      @prompt-deleted="promptLibrary = promptLibrary.filter(p => p.id !== $event)"
+                    />
+                  </template>
+                </div>
               </div>
-            </div>
+            </template>
           </div>
         </div>
       </template>
@@ -147,31 +162,31 @@
 
             <div>
               <label class="mb-1 block text-sm font-medium text-slate-700">Config Name</label>
-              <input v-model="form.name" type="text" class="input-field" />
+              <input v-model="form.name" type="text" class="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
             </div>
             <div>
               <label class="mb-1 block text-sm font-medium text-slate-700">Headline</label>
-              <input v-model="form.headline" type="text" class="input-field" />
+              <input v-model="form.headline" type="text" class="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
             </div>
             <div>
               <label class="mb-1 block text-sm font-medium text-slate-700">Subheadline</label>
-              <input v-model="form.subheadline" type="text" class="input-field" />
+              <input v-model="form.subheadline" type="text" class="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
             </div>
             <div>
               <label class="mb-1 block text-sm font-medium text-slate-700">Body Copy</label>
-              <textarea v-model="form.bodyText" rows="3" class="input-field" />
+              <textarea v-model="form.bodyText" rows="3" class="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
             </div>
             <div>
               <label class="mb-1 block text-sm font-medium text-slate-700">CTA Button Text</label>
-              <input v-model="form.ctaText" type="text" class="input-field" />
+              <input v-model="form.ctaText" type="text" class="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
             </div>
             <div>
               <label class="mb-1 block text-sm font-medium text-slate-700">Background Color / Description</label>
-              <input v-model="form.backgroundDescription" type="text" placeholder="dark navy" class="input-field" />
+              <input v-model="form.backgroundDescription" type="text" placeholder="dark navy" class="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
             </div>
             <div>
               <label class="mb-1 block text-sm font-medium text-slate-700">Hero Image Prompt</label>
-              <textarea v-model="form.heroImagePrompt" rows="5" class="input-field" />
+              <textarea v-model="form.heroImagePrompt" rows="5" class="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
             </div>
           </div>
 
@@ -190,14 +205,14 @@
           No ads generated yet. Click "Generate Ad" above.
         </div>
 
-        <div v-else class="space-y-6">
+        <div v-else class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           <div
             v-for="ad in generatedAds"
             :key="ad.id"
             class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
           >
             <!-- Status bar -->
-            <div class="flex items-center gap-3 px-5 py-3">
+            <div class="flex flex-wrap items-center gap-2 px-4 py-3">
               <span
                 class="rounded-full px-2.5 py-0.5 text-xs font-semibold"
                 :class="{
@@ -228,14 +243,14 @@
               </div>
             </div>
 
-            <!-- Full-width image — no card padding so it fills edge to edge -->
+            <!-- Image fills card edge to edge -->
             <img
               v-if="ad.status === 'complete' && ad.r2Key"
               :src="`/api/images/${ad.r2Key}`"
               alt="Generated ad"
               class="w-full"
             />
-            <div v-else-if="ad.status === 'error'" class="mx-5 mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+            <div v-else-if="ad.status === 'error'" class="mx-4 mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
               {{ ad.errorMessage }}
             </div>
           </div>
@@ -291,11 +306,18 @@ interface GeneratedAd {
   createdAt: Date | null
 }
 
+interface TemplatedLayer {
+  layer: string
+  type: string
+  description?: string
+}
+
 interface TemplatedTemplate {
   id: string
   thumbnail?: string
   width?: number
   height?: number
+  layers?: TemplatedLayer[]
 }
 
 const route = useRoute()
@@ -325,6 +347,7 @@ const templateLayers = ref<LayerSelection[]>([])
 const templateThumbnail = ref<string | null>(null)
 const templateWidth = ref<number | null>(null)
 const templateHeight = ref<number | null>(null)
+const templateLiveLayers = ref<TemplatedLayer[]>([])
 
 watch(config, async (c) => {
   if (!c) return
@@ -343,11 +366,20 @@ watch(config, async (c) => {
       templateThumbnail.value = tpl.thumbnail ?? null
       templateWidth.value = tpl.width ?? null
       templateHeight.value = tpl.height ?? null
+      templateLiveLayers.value = tpl.layers ?? []
     } catch {
       // thumbnail is optional — don't block the page
     }
   }
 }, { immediate: true })
+
+// Detect when the Templated.io template's layer structure has changed since the profile was saved
+const templateChanged = computed(() => {
+  if (!isTemplateBased.value || !templateLiveLayers.value.length || !templateLayers.value.length) return false
+  const live = templateLiveLayers.value.map(l => `${l.layer}::${l.type}`).sort().join(',')
+  const stored = templateLayers.value.map(l => `${l.layer}::${l.type}`).sort().join(',')
+  return live !== stored
+})
 
 // ── Shared form (name lives here for both modes) ──
 const form = reactive({
@@ -378,12 +410,33 @@ watch(
     } catch {
       form.bulletSteps = []
     }
+    // Capture baseline after both watches have populated their state
+    nextTick(() => { savedSnapshot.value = takeSnapshot() })
   },
   { immediate: true },
 )
 
+// ── Dirty tracking ──
+const savedSnapshot = ref('')
+
+function takeSnapshot(): string {
+  return JSON.stringify({
+    name: form.name,
+    layers: templateLayers.value,
+    headline: form.headline,
+    subheadline: form.subheadline,
+    bodyText: form.bodyText,
+    ctaText: form.ctaText,
+    heroImagePrompt: form.heroImagePrompt,
+    backgroundDescription: form.backgroundDescription,
+    bulletSteps: form.bulletSteps,
+  })
+}
+
+const isDirty = computed(() => savedSnapshot.value !== '' && takeSnapshot() !== savedSnapshot.value)
+
 // ── Collapse state ──
-const layersCollapsed = ref(false)
+const layersCollapsed = ref(true)
 
 const saving = ref(false)
 const generating = ref(false)
@@ -401,6 +454,7 @@ async function save() {
     } else {
       await $fetch(`/api/ad-configs/${id}`, { method: 'PUT', body: form })
     }
+    savedSnapshot.value = takeSnapshot()
   } catch (e: unknown) {
     errorMsg.value = e instanceof Error ? e.message : 'Failed to save'
   } finally {
@@ -411,9 +465,7 @@ async function save() {
 async function deleteGeneratedAd(genId: number) {
   if (!confirm('Delete this generated ad?')) return
   await $fetch(`/api/generated-ads/${genId}`, { method: 'DELETE' })
-  if (data.value) {
-    data.value.generatedAds = data.value.generatedAds.filter(a => a.id !== genId)
-  }
+  await refresh()
 }
 
 async function generate() {
@@ -432,9 +484,3 @@ async function generate() {
   }
 }
 </script>
-
-<style scoped>
-.input-field {
-  @apply w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500;
-}
-</style>

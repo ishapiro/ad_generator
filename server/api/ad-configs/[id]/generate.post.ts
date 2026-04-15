@@ -125,19 +125,28 @@ export default defineEventHandler(async (event) => {
       for (const sel of layerSelections) {
         if (sel.type !== 'image' && sel.value !== undefined) {
           templatedLayers[sel.layer] = { text: sel.value }
-        } else if (sel.type === 'image' && sel.imageMode === 'upload' && sel.r2Key) {
-          if (!publicBaseUrl) {
-            throw new Error(
-              `Layer '${sel.layer}' uses an uploaded image but NUXT_PUBLIC_BASE_URL is not set. ` +
-              'Set it to your deployed worker URL so Templated.io can fetch the image.',
-            )
+        } else if (sel.type === 'image' && sel.imageMode === 'upload') {
+          if (!sel.r2Key) {
+            console.warn(`[generate] SKIP layer '${sel.layer}': upload mode but no r2Key saved`)
+          } else {
+            if (!publicBaseUrl) {
+              throw new Error(
+                `Layer '${sel.layer}' uses an uploaded image but NUXT_PUBLIC_BASE_URL is not set. ` +
+                'Set it to your deployed worker URL so Templated.io can fetch the image.',
+              )
+            }
+            const imageUrl = `${publicBaseUrl}/api/images/${sel.r2Key}`
+            console.log(`[generate] upload layer '${sel.layer}': url=${imageUrl}`)
+            templatedLayers[sel.layer] = { image_url: imageUrl }
           }
-          templatedLayers[sel.layer] = { image_url: `${publicBaseUrl}/api/images/${sel.r2Key}` }
+        } else if (sel.type === 'image' && sel.imageMode !== 'upload' && !sel.prompt) {
+          console.warn(`[generate] SKIP layer '${sel.layer}': generate mode but no prompt saved`)
         }
       }
       for (let i = 0; i < generateJobs.length; i++) {
         templatedLayers[generateJobs[i].layer] = { image_url: generatedUrls[i] }
       }
+      console.log('[generate] templatedLayers =', JSON.stringify(templatedLayers))
     } else {
       // ── Legacy path: hardcoded field mapping ──
       const steps: BulletStep[] = JSON.parse(config.bulletSteps || '[]')
@@ -203,12 +212,14 @@ export default defineEventHandler(async (event) => {
       }),
     })
 
+    const renderRawBody = await renderRes.text()
+    console.log(`[generate] Templated.io response: ${renderRes.status} ${renderRes.statusText}`)
+    console.log(`[generate] Templated.io body: ${renderRawBody}`)
     if (!renderRes.ok) {
-      const errBody = await renderRes.text()
-      throw new Error(`Templated API Error: ${renderRes.status} ${renderRes.statusText} — ${errBody}`)
+      throw new Error(`Templated API Error: ${renderRes.status} ${renderRes.statusText} — ${renderRawBody}`)
     }
 
-    const renderResult = await renderRes.json() as { url: string; status: string }
+    const renderResult = JSON.parse(renderRawBody) as { url: string; status: string }
     if (!renderResult.url) {
       throw new Error(`Templated API returned no image URL: ${JSON.stringify(renderResult)}`)
     }

@@ -7,11 +7,19 @@ export default defineEventHandler(async (event) => {
   const r2 = useR2(event)
   const object = await r2.get(key)
 
-  if (!object) throw createError({ statusCode: 404, message: 'Image not found' })
+  if (!object) {
+    console.warn(`[images] 404 key=${key}`)
+    throw createError({ statusCode: 404, message: 'Image not found' })
+  }
 
   const contentType = object.httpMetadata?.contentType ?? 'image/jpeg'
+  console.log(`[images] serving key=${key} contentType=${contentType}`)
+
+  // Buffer the entire body rather than streaming — more reliable for external callers
+  const arrayBuffer = await new Response(object.body).arrayBuffer()
+
   setResponseHeader(event, 'Content-Type', contentType)
   setResponseHeader(event, 'Cache-Control', 'public, max-age=31536000, immutable')
 
-  return sendStream(event, object.body)
+  return new Uint8Array(arrayBuffer)
 })

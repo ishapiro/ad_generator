@@ -9,7 +9,7 @@
 
     <div class="space-y-8 text-slate-700">
       <p>
-        At <strong class="font-medium text-slate-900">Cogitations Ad Generator</strong>, operated by Cogitations, LLC,
+        At <strong class="font-medium text-slate-900">Cogitations Media/Ad Management System</strong>, operated by Cogitations, LLC,
         we respect your privacy and are committed to protecting your personal data. This policy outlines how we handle
         information when you use our services.
       </p>

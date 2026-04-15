@@ -117,8 +117,22 @@
     <!-- ── Upload / Library mode ── -->
     <template v-else>
       <!-- Currently selected image preview -->
-      <div v-if="localR2Key" class="relative overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-        <img :src="`/api/images/${localR2Key}`" alt="Selected image" class="max-h-48 w-full object-contain" />
+      <div
+        v-if="localR2Key"
+        class="relative overflow-hidden rounded-lg border"
+        :class="selectedImageBroken ? 'border-red-300' : 'border-slate-200'"
+        style="background: repeating-conic-gradient(#e2e8f0 0% 25%, #ffffff 0% 50%) 0 0 / 16px 16px"
+      >
+        <img
+          :src="`/api/images/${localR2Key}`"
+          alt="Selected image"
+          class="max-h-48 w-full object-contain"
+          @load="selectedImageBroken = false"
+          @error="selectedImageBroken = true"
+        />
+        <div v-if="selectedImageBroken" class="flex items-center gap-2 bg-red-50 px-3 py-2 text-xs text-red-700">
+          <span class="font-medium">Image not found.</span> Please re-select from the library below.
+        </div>
         <button
           type="button"
           class="absolute right-2 top-2 rounded-full bg-white/90 px-2 py-1 text-xs font-medium text-red-600 shadow hover:bg-white"
@@ -131,31 +145,51 @@
       <!-- Library grid -->
       <div v-if="libraryImages.length" class="space-y-2">
         <p class="text-xs font-medium text-slate-500">Previously uploaded</p>
+        <p v-if="deleteError" class="text-xs text-red-600">{{ deleteError }}</p>
         <div class="grid grid-cols-4 gap-2">
-          <button
+          <div
             v-for="img in libraryImages"
             :key="img.id"
-            type="button"
             class="group relative aspect-square overflow-hidden rounded-lg border-2 transition"
             :class="localR2Key === img.r2Key
               ? 'border-blue-500 ring-2 ring-blue-300'
               : 'border-slate-200 hover:border-blue-400'"
-            :title="img.filename"
-            @click="selectLibraryImage(img.r2Key)"
+            style="background: repeating-conic-gradient(#e2e8f0 0% 25%, #ffffff 0% 50%) 0 0 / 10px 10px"
           >
-            <img
-              :src="`/api/images/${img.r2Key}`"
-              :alt="img.filename"
-              class="h-full w-full object-cover"
-            />
+            <!-- Select button -->
+            <button
+              type="button"
+              class="h-full w-full"
+              :title="img.filename"
+              @click="selectLibraryImage(img.r2Key)"
+            >
+              <img
+                :src="`/api/images/${img.r2Key}`"
+                :alt="img.filename"
+                class="h-full w-full object-cover"
+              />
+            </button>
+
             <!-- Selected checkmark -->
             <div
               v-if="localR2Key === img.r2Key"
-              class="absolute inset-0 flex items-center justify-center bg-blue-500/20"
+              class="pointer-events-none absolute inset-0 flex items-end justify-start bg-blue-500/20 p-1"
             >
               <span class="rounded-full bg-blue-600 px-1.5 py-0.5 text-xs font-bold text-white">✓</span>
             </div>
-          </button>
+
+            <!-- Delete button (appears on hover) -->
+            <button
+              type="button"
+              class="absolute right-1 top-1 rounded-full bg-white/90 p-0.5 text-red-500 opacity-0 shadow transition-opacity hover:bg-white group-hover:opacity-100"
+              title="Delete image"
+              @click.stop="deleteLibraryImage(img)"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -168,8 +202,14 @@
         >
           <span class="text-xl">{{ uploading ? '⏳' : '📁' }}</span>
           <span>{{ uploading ? 'Uploading…' : 'Click to choose a file' }}</span>
-          <span class="text-xs text-slate-400">JPG, PNG, WebP</span>
-          <input type="file" accept="image/*" class="hidden" :disabled="uploading" @change="handleFileChange" />
+          <span class="text-xs text-slate-400">PNG, GIF, JPEG, or SVG</span>
+          <input
+            type="file"
+            accept="image/png,image/gif,image/jpeg,image/svg+xml"
+            class="hidden"
+            :disabled="uploading"
+            @change="handleFileChange"
+          />
         </label>
         <p v-if="uploadError" class="mt-1 text-xs text-red-600">{{ uploadError }}</p>
       </div>
@@ -198,6 +238,7 @@ const props = defineProps<{
   r2Key: string
   imageMode: 'generate' | 'upload'
   savedPrompts: SavedPrompt[]
+  profileId?: number
 }>()
 
 const emit = defineEmits<{
@@ -218,9 +259,11 @@ const localPrompt = computed({
   set: (v) => emit('update:prompt', v),
 })
 
+const selectedImageBroken = ref(false)
+
 const localR2Key = computed({
   get: () => props.r2Key,
-  set: (v) => emit('update:r2Key', v),
+  set: (v) => { selectedImageBroken.value = false; emit('update:r2Key', v) },
 })
 
 // ── Image library ──
@@ -234,7 +277,6 @@ async function loadLibrary() {
   }
 }
 
-// Load library when switching to upload mode
 watch(mode, (m) => { if (m === 'upload') loadLibrary() }, { immediate: true })
 
 function selectLibraryImage(r2Key: string) {
@@ -245,14 +287,47 @@ function clearUpload() {
   localR2Key.value = ''
 }
 
+const deleteError = ref('')
+
+async function deleteLibraryImage(img: UploadedImage) {
+  if (!confirm(`Delete "${img.filename}"? This cannot be undone.`)) return
+  deleteError.value = ''
+  try {
+    const params = props.profileId ? `?excludeProfileId=${props.profileId}` : ''
+    await $fetch(`/api/uploads/${img.id}${params}`, { method: 'DELETE' })
+    libraryImages.value = libraryImages.value.filter(i => i.id !== img.id)
+    if (localR2Key.value === img.r2Key) localR2Key.value = ''
+  } catch (e: unknown) {
+    deleteError.value =
+      e && typeof e === 'object' && 'data' in e
+        ? (e as { data: { message?: string } }).data?.message ?? 'Failed to delete image.'
+        : 'Failed to delete image.'
+  }
+}
+
 // ── File upload ──
 const uploading = ref(false)
 const uploadError = ref('')
 
+const ALLOWED_TYPES = ['image/png', 'image/gif', 'image/jpeg', 'image/svg+xml']
+
 async function handleFileChange(e: Event) {
   const input = e.target as HTMLInputElement
   const file = input.files?.[0]
+  input.value = ''
   if (!file) return
+
+  uploadError.value = ''
+
+  if (!ALLOWED_TYPES.includes(file.type)) {
+    uploadError.value = 'Only PNG, GIF, and JPEG images are supported. Export your logo as PNG with a transparent background.'
+    return
+  }
+
+  await uploadFile(file)
+}
+
+async function uploadFile(file: File) {
   uploading.value = true
   uploadError.value = ''
   try {
@@ -260,13 +335,11 @@ async function handleFileChange(e: Event) {
     fd.append('file', file)
     const record = await $fetch<UploadedImage>('/api/upload', { method: 'POST', body: fd })
     localR2Key.value = record.r2Key
-    // Prepend to library so it appears immediately
     libraryImages.value.unshift(record)
   } catch {
     uploadError.value = 'Upload failed. Please try again.'
   } finally {
     uploading.value = false
-    input.value = ''
   }
 }
 

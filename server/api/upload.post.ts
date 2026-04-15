@@ -9,8 +9,14 @@ export default defineEventHandler(async (event) => {
   }
 
   const mimeType = filePart.type ?? 'image/jpeg'
+
+  const allowed = ['image/png', 'image/gif', 'image/jpeg', 'image/svg+xml']
+  if (!allowed.includes(mimeType)) {
+    throw createError({ statusCode: 415, message: 'Only PNG, GIF, JPEG, and SVG images are supported' })
+  }
+
   const ext = mimeToExt(mimeType)
-  const r2Key = `uploads/${crypto.randomUUID()}.${ext}`
+  const r2Key = `${crypto.randomUUID()}.${ext}`
   const filename = filePart.filename ?? `upload.${ext}`
 
   const r2 = useR2(event)

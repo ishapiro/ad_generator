@@ -10,7 +10,7 @@
       <p class="mt-4 text-base text-slate-600 sm:text-lg">
         I&apos;ve spent more than forty years founding and scaling technology companies —
         from Metamor Technologies (500+ employees, successful exit) to DialogTech ($60M+
-        in VC funding) — and I&apos;m still building. The Cogitations Ad Generator is one of
+        in VC funding) — and I&apos;m still building. The Cogitations Media/Ad Management system is one of
         the tools I use to explore AI-powered content creation for modern marketing.
       </p>
     </header>

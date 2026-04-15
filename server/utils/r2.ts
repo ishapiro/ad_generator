@@ -23,5 +23,6 @@ export function mimeToExt(mimeType: string): string {
   if (mimeType === 'image/png') return 'png'
   if (mimeType === 'image/webp') return 'webp'
   if (mimeType === 'image/gif') return 'gif'
+  if (mimeType === 'image/svg+xml') return 'svg'
   return 'jpg'
 }

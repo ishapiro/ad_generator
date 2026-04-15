@@ -1,5 +1,5 @@
-import { eq } from 'drizzle-orm'
-import { adConfigs } from '~/server/utils/db/schema'
+import { eq, inArray } from 'drizzle-orm'
+import { adConfigs, uploadedImages } from '~/server/utils/db/schema'
 
 export default defineEventHandler(async (event) => {
   const id = Number(getRouterParam(event, 'id'))
@@ -21,6 +21,28 @@ export default defineEventHandler(async (event) => {
   const db = useDb(event)
   const [existing] = await db.select().from(adConfigs).where(eq(adConfigs.id, id)).limit(1)
   if (!existing) throw createError({ statusCode: 404, message: 'Ad config not found' })
+
+  // Validate that any uploaded image r2Keys still exist in the library
+  if (body.templateLayers) {
+    const uploadR2Keys = body.templateLayers
+      .filter((l): l is typeof l & { r2Key: string } =>
+        l.type === 'image' && (l as { imageMode?: string }).imageMode === 'upload' && !!(l as { r2Key?: string }).r2Key)
+      .map(l => (l as { r2Key: string }).r2Key)
+
+    if (uploadR2Keys.length > 0) {
+      const found = await db.select({ r2Key: uploadedImages.r2Key })
+        .from(uploadedImages)
+        .where(inArray(uploadedImages.r2Key, uploadR2Keys))
+      const foundKeys = new Set(found.map(r => r.r2Key))
+      const missing = uploadR2Keys.filter(k => !foundKeys.has(k))
+      if (missing.length > 0) {
+        throw createError({
+          statusCode: 400,
+          message: 'One or more selected images no longer exist in the library. Please re-select them before saving.',
+        })
+      }
+    }
+  }
 
   const [updated] = await db
     .update(adConfigs)

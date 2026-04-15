@@ -9,7 +9,7 @@
           style="display: block; width: 48px; height: 48px; max-width: none;"
         />
       </div>
-      <h1 class="text-center text-xl font-semibold text-slate-900">Cogitations Ad Generator</h1>
+      <h1 class="text-center text-xl font-semibold text-slate-900">Cogitations Media/Ad Management</h1>
       <p class="mt-3 text-center text-sm text-slate-600">
         This is a private application for the exclusive use of the
         <span class="font-medium text-slate-800">Cogitations family of companies</span>.
@@ -50,7 +50,7 @@
                   style="display: block; width: 36px; height: 36px; max-width: none;"
                 />
               </div>
-              <span class="text-lg font-semibold text-slate-900">Cogitations Ad Generator</span>
+              <span class="text-lg font-semibold text-slate-900">Cogitations Media/Ad Management</span>
             </NuxtLink>
             <nav>
               <NuxtLink
