@@ -282,7 +282,7 @@
       <img
         :src="`/api/images/${viewingImageKey}`"
         alt="Generated ad"
-        style="display: block; width: 100%; height: 100%; object-fit: contain; max-width: none;"
+        style="display: block; width: 100%; height: 100%; object-fit: contain; max-width: none; padding-top: 1.5rem; padding-bottom: 1.5rem;"
       />
     </div>
   </div>
