@@ -2,7 +2,7 @@
   <div class="mx-auto max-w-wide px-4 py-10">
     <div class="mb-8 flex items-center justify-between">
       <div>
-        <NuxtLink to="/" class="text-sm text-slate-500 hover:text-slate-700">← Back to Ad Profiles</NuxtLink>
+        <NuxtLink to="/ads" class="text-sm text-slate-500 hover:text-slate-700">← Back to Ad Profiles</NuxtLink>
         <h1 class="mt-1 text-3xl font-bold text-slate-900">Choose a Template</h1>
         <p class="mt-1 text-sm text-slate-500">
           Templates define the visual layout of your ad — where headlines, images, and other elements are positioned.

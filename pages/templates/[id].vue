@@ -11,7 +11,7 @@
     </div>
 
     <template v-else-if="template">
-      <NuxtLink to="/" class="mb-4 inline-block text-sm text-slate-500 hover:text-slate-700">← Back to Ad Profiles</NuxtLink>
+      <NuxtLink to="/ads" class="mb-4 inline-block text-sm text-slate-500 hover:text-slate-700">← Back to Ad Profiles</NuxtLink>
       <h1 class="mb-1 text-2xl font-bold text-slate-900">Create Ad Profile — {{ template.name }}</h1>
       <p class="mb-2 text-sm text-slate-500">
         Fill in the fields below to configure this template's content. Text layers accept your ad copy directly.
@@ -214,7 +214,7 @@ async function createVariation() {
     })
 
     clearNuxtData('ad-configs-index')
-    await navigateTo('/')
+    await navigateTo('/ads')
   } catch (e: unknown) {
     createError.value =
       e && typeof e === 'object' && 'data' in e

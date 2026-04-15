@@ -52,7 +52,21 @@
               </div>
               <span class="text-lg font-semibold text-slate-900">Cogitations Media/Ad Management</span>
             </NuxtLink>
-            <nav>
+            <nav class="flex items-center gap-6">
+              <NuxtLink
+                to="/ads"
+                class="text-sm font-medium text-slate-600 hover:text-slate-900"
+                active-class="text-blue-600 font-semibold"
+              >
+                Ads
+              </NuxtLink>
+              <NuxtLink
+                to="/media"
+                class="text-sm font-medium text-slate-600 hover:text-slate-900"
+                active-class="text-blue-600 font-semibold"
+              >
+                Media
+              </NuxtLink>
               <NuxtLink
                 to="/about"
                 class="text-sm font-medium text-slate-600 hover:text-slate-900"

@@ -3,14 +3,14 @@
     <div v-if="pending" class="text-slate-500">Loading…</div>
     <div v-else-if="!config">
       <p class="text-red-500">Ad config not found.</p>
-      <NuxtLink to="/" class="text-blue-600 hover:underline">← Back to list</NuxtLink>
+      <NuxtLink to="/ads" class="text-blue-600 hover:underline">← Back to list</NuxtLink>
     </div>
 
     <template v-else>
       <!-- ── Header ── -->
       <div class="mb-6">
         <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <NuxtLink to="/" class="text-sm text-slate-500 hover:text-slate-700">← All Ad Profiles</NuxtLink>
+          <NuxtLink to="/ads" class="text-sm text-slate-500 hover:text-slate-700">← All Ad Profiles</NuxtLink>
           <div class="flex gap-3">
             <button
           type="button"

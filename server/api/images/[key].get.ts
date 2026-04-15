@@ -19,7 +19,13 @@ export default defineEventHandler(async (event) => {
   const arrayBuffer = await object.arrayBuffer()
 
   setResponseHeader(event, 'Content-Type', contentType)
-  setResponseHeader(event, 'Cache-Control', 'public, max-age=31536000, immutable')
+
+  if (getQuery(event).download) {
+    const filename = key.split('/').pop() ?? key
+    setResponseHeader(event, 'Content-Disposition', `attachment; filename="${filename}"`)
+  } else {
+    setResponseHeader(event, 'Cache-Control', 'public, max-age=31536000, immutable')
+  }
 
   return new Uint8Array(arrayBuffer)
 })

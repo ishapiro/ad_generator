@@ -1,7 +1,7 @@
 <template>
   <div class="mx-auto max-w-wide px-4 py-10">
     <div class="mb-6 flex items-center gap-3">
-      <NuxtLink to="/" class="text-sm text-slate-500 hover:text-slate-700">← Back</NuxtLink>
+      <NuxtLink to="/ads" class="text-sm text-slate-500 hover:text-slate-700">← Back</NuxtLink>
       <h1 class="text-2xl font-bold text-slate-900">New Ad Config (Manual)</h1>
     </div>
 
@@ -58,7 +58,7 @@
         >
           {{ saving ? 'Saving…' : 'Save' }}
         </button>
-        <NuxtLink to="/" class="rounded-lg border border-slate-300 px-5 py-2 text-slate-700 hover:bg-slate-50">
+        <NuxtLink to="/ads" class="rounded-lg border border-slate-300 px-5 py-2 text-slate-700 hover:bg-slate-50">
           Cancel
         </NuxtLink>
       </div>

@@ -1,5 +1,11 @@
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
+export const mediaFolders = sqliteTable('media_folders', {
+  id:        integer('id').primaryKey({ autoIncrement: true }),
+  name:      text('name').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+})
+
 export const adConfigs = sqliteTable('ad_configs', {
   id:                    integer('id').primaryKey({ autoIncrement: true }),
   name:                  text('name').notNull(),
@@ -17,11 +23,18 @@ export const adConfigs = sqliteTable('ad_configs', {
 })
 
 export const uploadedImages = sqliteTable('uploaded_images', {
-  id:        integer('id').primaryKey({ autoIncrement: true }),
-  r2Key:     text('r2_key').notNull(),
-  filename:  text('filename').notNull(),
-  mimeType:  text('mime_type').notNull().default('image/jpeg'),
-  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+  id:          integer('id').primaryKey({ autoIncrement: true }),
+  r2Key:       text('r2_key').notNull(),
+  filename:    text('filename').notNull(),
+  mimeType:    text('mime_type').notNull().default('image/jpeg'),
+  description: text('description'),
+  keywords:    text('keywords'),    // JSON: string[]
+  altText:     text('alt_text'),
+  source:      text('source'),
+  copyright:   text('copyright'),
+  folderId:    integer('folder_id').references(() => mediaFolders.id),
+  locked:      integer('locked').notNull().default(0),
+  createdAt:   integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 })
 
 export const savedPrompts = sqliteTable('saved_prompts', {
