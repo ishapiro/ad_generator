@@ -73,6 +73,8 @@
 </template>
 
 <script setup lang="ts">
+definePageMeta({ middleware: ['auth'] })
+
 interface AdConfig {
   id: number
   name: string
@@ -80,7 +82,7 @@ interface AdConfig {
   createdAt: Date | null
 }
 
-const { data, pending, refresh } = await useFetch<{ adConfigs: AdConfig[] }>('/api/ad-configs', { key: 'ad-configs-index' })
+const { data, pending, refresh } = await useFetch<{ adConfigs: AdConfig[] }>('/api/ad-configs', { key: 'ad-configs-index', server: false })
 const adConfigs = computed(() => data.value?.adConfigs ?? [])
 
 const generatingId = ref<number | null>(null)

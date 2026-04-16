@@ -1,8 +1,10 @@
 import { eq } from 'drizzle-orm'
 import { generatedAds } from '~/server/utils/db/schema'
+import { requireSession } from '~/server/utils/auth'
 import { useR2 } from '~/server/utils/r2'
 
 export default defineEventHandler(async (event) => {
+  await requireSession(event)
   const id = Number(getRouterParam(event, 'id'))
   if (!id) throw createError({ statusCode: 400, message: 'Invalid id' })
 

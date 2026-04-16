@@ -176,6 +176,8 @@
 </template>
 
 <script setup lang="ts">
+definePageMeta({ middleware: ['auth'] })
+
 interface TemplatedLayer {
   layer: string
   type: string
@@ -204,8 +206,8 @@ const route = useRoute()
 const id = route.params.id as string
 
 const [{ data, pending, error }, promptsData] = await Promise.all([
-  useFetch<TemplatedTemplate>(`/api/templated/templates/${id}`),
-  useFetch<SavedPrompt[]>('/api/prompts'),
+  useFetch<TemplatedTemplate>(`/api/templated/templates/${id}`, { server: false }),
+  useFetch<SavedPrompt[]>('/api/prompts', { server: false }),
 ])
 
 const template = computed(() => data.value ?? null)

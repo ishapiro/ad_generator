@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { uploadedImages } from '~/server/utils/db/schema'
+import { requireProjectAccess, requireSession } from '~/server/utils/auth'
 
 interface UpdateBody {
   description?: string | null
@@ -12,6 +13,7 @@ interface UpdateBody {
 }
 
 export default defineEventHandler(async (event) => {
+  const session = await requireSession(event)
   const id = Number(getRouterParam(event, 'id'))
   if (!id) throw createError({ statusCode: 400, message: 'Invalid id' })
 
@@ -20,6 +22,10 @@ export default defineEventHandler(async (event) => {
 
   const [record] = await db.select().from(uploadedImages).where(eq(uploadedImages.id, id)).limit(1)
   if (!record) throw createError({ statusCode: 404, message: 'Image not found' })
+
+  if (record.projectId && session.role !== 'admin') {
+    await requireProjectAccess(event, record.projectId)
+  }
 
   const updates: Partial<typeof uploadedImages.$inferInsert> = {}
 

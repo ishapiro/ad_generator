@@ -1,4 +1,7 @@
+import { requireSession } from '~/server/utils/auth'
+
 export default defineEventHandler(async (event) => {
+  await requireSession(event)
   const cfg = useRuntimeConfig(event)
   const apiKey = cfg.templatedApiKey as string
   if (!apiKey) throw createError({ statusCode: 500, message: 'Missing NUXT_TEMPLATED_API_KEY' })

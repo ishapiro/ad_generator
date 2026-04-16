@@ -1,11 +1,23 @@
-import { useR2, mimeToExt } from '~/server/utils/r2'
+import { mimeToExt, useR2 } from '~/server/utils/r2'
 import { uploadedImages } from '~/server/utils/db/schema'
+import { requireProjectAccess, requireSession } from '~/server/utils/auth'
 
 export default defineEventHandler(async (event) => {
+  const session = await requireSession(event)
+
   const parts = await readMultipartFormData(event)
   const filePart = parts?.find(p => p.name === 'file')
   if (!filePart?.data?.length) {
     throw createError({ statusCode: 400, message: 'No file uploaded' })
+  }
+
+  const projectIdRaw = parts?.find(p => p.name === 'projectId')?.data?.toString()
+  const projectId = projectIdRaw ? Number(projectIdRaw) : null
+
+  if (projectId) {
+    await requireProjectAccess(event, projectId)
+  } else if (session.role !== 'admin') {
+    throw createError({ statusCode: 400, message: 'projectId is required' })
   }
 
   const mimeType = filePart.type ?? 'image/jpeg'
@@ -27,7 +39,7 @@ export default defineEventHandler(async (event) => {
   const db = useDb(event)
   const [record] = await db
     .insert(uploadedImages)
-    .values({ r2Key, filename, mimeType, createdAt: new Date() })
+    .values({ projectId, r2Key, filename, mimeType, createdAt: new Date() })
     .returning()
 
   return record

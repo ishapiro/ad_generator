@@ -1,3 +1,5 @@
+import { requireSession } from '~/server/utils/auth'
+
 const FALLBACK_CHAIN = ['models/gemini-2.5-flash-preview', 'models/gemini-2.5-flash-latest']
 const EXCLUDE_PATTERNS = ['image', 'audio', 'tts', 'live', 'native']
 
@@ -71,6 +73,7 @@ function stripMarkdownFences(text: string): string {
 }
 
 export default defineEventHandler(async (event) => {
+  await requireSession(event)
   const config = useRuntimeConfig(event)
   const apiKey = config.geminiApiKey as string
   if (!apiKey) {

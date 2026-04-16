@@ -1,5 +1,6 @@
 import { eq, inArray, isNotNull } from 'drizzle-orm'
 import { adConfigs, uploadedImages } from '~/server/utils/db/schema'
+import { getUserProjectIds, requireSession } from '~/server/utils/auth'
 import { useR2 } from '~/server/utils/r2'
 
 interface BulkBody {
@@ -9,6 +10,7 @@ interface BulkBody {
 }
 
 export default defineEventHandler(async (event) => {
+  const session = await requireSession(event)
   const body = await readBody<BulkBody>(event)
   const { action, ids } = body
 
@@ -17,6 +19,22 @@ export default defineEventHandler(async (event) => {
   }
 
   const db = useDb(event)
+  const projectIds = await getUserProjectIds(event, session)
+
+  // Verify all requested images are accessible to this user
+  const records = await db
+    .select()
+    .from(uploadedImages)
+    .where(inArray(uploadedImages.id, ids))
+
+  if (projectIds !== null) {
+    const accessibleSet = new Set(projectIds)
+    for (const r of records) {
+      if (r.projectId && !accessibleSet.has(r.projectId)) {
+        throw createError({ statusCode: 403, message: 'Access denied to one or more images' })
+      }
+    }
+  }
 
   if (action === 'move') {
     const folderId = body.folderId ?? null
@@ -28,17 +46,11 @@ export default defineEventHandler(async (event) => {
   }
 
   if (action === 'delete') {
-    // Load the records
-    const records = await db
-      .select()
-      .from(uploadedImages)
-      .where(inArray(uploadedImages.id, ids))
+    const configsQuery = projectIds === null
+      ? db.select({ id: adConfigs.id, name: adConfigs.name, templateLayers: adConfigs.templateLayers }).from(adConfigs).where(isNotNull(adConfigs.templateLayers))
+      : db.select({ id: adConfigs.id, name: adConfigs.name, templateLayers: adConfigs.templateLayers }).from(adConfigs).where(inArray(adConfigs.projectId, projectIds))
 
-    // Build usage map: r2Key → profile names
-    const configs = await db
-      .select({ id: adConfigs.id, name: adConfigs.name, templateLayers: adConfigs.templateLayers })
-      .from(adConfigs)
-      .where(isNotNull(adConfigs.templateLayers))
+    const configs = await configsQuery
 
     const usageMap = new Map<string, string[]>()
     for (const config of configs) {
@@ -76,11 +88,7 @@ export default defineEventHandler(async (event) => {
         .where(inArray(uploadedImages.id, toDelete.map(r => r.id)))
     }
 
-    return {
-      ok: true,
-      deleted: toDelete.length,
-      skipped,
-    }
+    return { ok: true, deleted: toDelete.length, skipped }
   }
 
   throw createError({ statusCode: 400, message: `Unknown action: ${action}` })

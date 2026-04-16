@@ -1,7 +1,9 @@
 import { eq, inArray } from 'drizzle-orm'
 import { adConfigs, uploadedImages } from '~/server/utils/db/schema'
+import { requireProjectAccess, requireSession } from '~/server/utils/auth'
 
 export default defineEventHandler(async (event) => {
+  const session = await requireSession(event)
   const id = Number(getRouterParam(event, 'id'))
   if (!id) throw createError({ statusCode: 400, message: 'Invalid id' })
 
@@ -21,6 +23,10 @@ export default defineEventHandler(async (event) => {
   const db = useDb(event)
   const [existing] = await db.select().from(adConfigs).where(eq(adConfigs.id, id)).limit(1)
   if (!existing) throw createError({ statusCode: 404, message: 'Ad config not found' })
+
+  if (existing.projectId && session.role !== 'admin') {
+    await requireProjectAccess(event, existing.projectId)
+  }
 
   // Validate that any uploaded image r2Keys still exist in the library
   if (body.templateLayers) {

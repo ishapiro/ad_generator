@@ -67,6 +67,8 @@
 </template>
 
 <script setup lang="ts">
+definePageMeta({ middleware: ['auth'] })
+
 const saving = ref(false)
 const error = ref<string | null>(null)
 

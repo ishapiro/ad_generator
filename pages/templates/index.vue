@@ -49,6 +49,8 @@
 </template>
 
 <script setup lang="ts">
+definePageMeta({ middleware: ['auth'] })
+
 interface TemplatedTemplate {
   id: string
   name: string
@@ -59,7 +61,7 @@ interface TemplatedTemplate {
   folderId?: string
 }
 
-const { data, pending, error } = await useFetch<TemplatedTemplate[]>('/api/templated/templates')
+const { data, pending, error } = await useFetch<TemplatedTemplate[]>('/api/templated/templates', { server: false })
 const templates = computed(() => data.value ?? [])
 </script>
 

@@ -1,3 +1,4 @@
+import { requireSession } from '~/server/utils/auth'
 import { useR2 } from '~/server/utils/r2'
 
 const FALLBACK_CHAIN = ['models/gemini-2.5-flash-preview', 'models/gemini-2.5-flash-latest']
@@ -50,6 +51,7 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 }
 
 export default defineEventHandler(async (event) => {
+  await requireSession(event)
   const cfg = useRuntimeConfig(event)
   const apiKey = cfg.geminiApiKey as string
   if (!apiKey) {

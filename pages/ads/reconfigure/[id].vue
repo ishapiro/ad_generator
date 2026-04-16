@@ -191,7 +191,7 @@
 </template>
 
 <script setup lang="ts">
-definePageMeta({ layout: 'default' })
+definePageMeta({ layout: 'default', middleware: ['auth'] })
 
 interface LayerSelection {
   layer: string
@@ -243,7 +243,7 @@ const { data, pending } = await useAsyncData(`reconfigure-${id}`, async () => {
 })
 
 const [promptsRes] = await Promise.all([
-  useFetch<SavedPrompt[]>('/api/prompts'),
+  useFetch<SavedPrompt[]>('/api/prompts', { server: false }),
 ])
 const promptLibrary = ref<SavedPrompt[]>(promptsRes.data.value ?? [])
 

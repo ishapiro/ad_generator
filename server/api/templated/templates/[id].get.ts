@@ -1,4 +1,7 @@
+import { requireSession } from '~/server/utils/auth'
+
 export default defineEventHandler(async (event) => {
+  await requireSession(event)
   const id = getRouterParam(event, 'id')
   if (!id) throw createError({ statusCode: 400, message: 'Missing template id' })
 

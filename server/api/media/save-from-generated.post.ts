@@ -1,8 +1,10 @@
 import { eq } from 'drizzle-orm'
 import { adConfigs, generatedAds, uploadedImages } from '~/server/utils/db/schema'
+import { requireProjectAccess, requireSession } from '~/server/utils/auth'
 import { useR2 } from '~/server/utils/r2'
 
 export default defineEventHandler(async (event) => {
+  const session = await requireSession(event)
   const body = await readBody<{ generatedAdId?: number }>(event)
   const generatedAdId = Number(body?.generatedAdId)
   if (!generatedAdId) throw createError({ statusCode: 400, message: 'generatedAdId is required' })
@@ -19,18 +21,20 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'Generated ad is not complete' })
   }
 
-  // Build a descriptive filename from the profile name and date
   const [config] = await db
-    .select({ name: adConfigs.name })
+    .select({ name: adConfigs.name, projectId: adConfigs.projectId })
     .from(adConfigs)
     .where(eq(adConfigs.id, ad.adConfigId))
     .limit(1)
+
+  if (config?.projectId && session.role !== 'admin') {
+    await requireProjectAccess(event, config.projectId)
+  }
 
   const profileName = (config?.name ?? 'Ad').replace(/[^a-z0-9\s-]/gi, '').trim()
   const dateStr = new Date(ad.createdAt ?? Date.now()).toISOString().slice(0, 10)
   const filename = `${profileName} ${dateStr}.jpg`
 
-  // Copy the R2 object to a new key so the two records are independent
   const r2 = useR2(event)
   const original = await r2.get(ad.r2Key)
   if (!original) throw createError({ statusCode: 404, message: 'R2 object not found for generated ad' })
@@ -42,6 +46,7 @@ export default defineEventHandler(async (event) => {
   const [record] = await db
     .insert(uploadedImages)
     .values({
+      projectId: config?.projectId ?? null,
       r2Key: newR2Key,
       filename,
       mimeType: 'image/jpeg',

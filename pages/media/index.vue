@@ -564,7 +564,7 @@
 </template>
 
 <script setup lang="ts">
-definePageMeta({ key: 'media-index' })
+definePageMeta({ middleware: ['auth'], key: 'media-index' })
 
 interface MediaItem {
   id: number
@@ -598,9 +598,9 @@ interface GeneratedAdItem {
 }
 
 // ── Data ──
-const { data, pending, refresh } = await useFetch<MediaItem[]>('/api/media', { key: 'media-index' })
-const { data: foldersData, refresh: refreshFolders } = await useFetch<Folder[]>('/api/media/folders', { key: 'media-folders' })
-const { data: generatedAdsData, pending: generatedAdsPending, refresh: refreshGeneratedAds } = await useFetch<GeneratedAdItem[]>('/api/media/generated', { key: 'media-generated' })
+const { data, pending, refresh } = await useFetch<MediaItem[]>('/api/media', { key: 'media-index', server: false })
+const { data: foldersData, refresh: refreshFolders } = await useFetch<Folder[]>('/api/media/folders', { key: 'media-folders', server: false })
+const { data: generatedAdsData, pending: generatedAdsPending, refresh: refreshGeneratedAds } = await useFetch<GeneratedAdItem[]>('/api/media/generated', { key: 'media-generated', server: false })
 
 const items = computed(() => data.value ?? [])
 const folders = computed(() => foldersData.value ?? [])

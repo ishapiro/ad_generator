@@ -478,6 +478,7 @@
 </template>
 
 <script setup lang="ts">
+definePageMeta({ middleware: ['auth'] })
 import { marked } from 'marked'
 
 interface LayerSelection {
@@ -546,9 +547,9 @@ const id = Number(route.params.id)
 const [{ data, pending, refresh }, promptsRes] = await Promise.all([
   useFetch<{ config: AdConfig; generatedAds: GeneratedAd[] }>(
     `/api/ad-configs/${id}`,
-    { key: `ad-config-${id}` },
+    { key: `ad-config-${id}`, server: false },
   ),
-  useFetch<SavedPrompt[]>('/api/prompts'),
+  useFetch<SavedPrompt[]>('/api/prompts', { server: false }),
 ])
 
 const promptLibrary = ref<SavedPrompt[]>(promptsRes.data.value ?? [])
