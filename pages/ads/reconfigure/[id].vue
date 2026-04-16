@@ -249,7 +249,7 @@ const promptLibrary = ref<SavedPrompt[]>(promptsRes.data.value ?? [])
 
 const config = computed(() => data.value?.config ?? null)
 const template = computed(() => data.value?.template ?? null)
-const newLayers = computed(() => template.value?.layers ?? [])
+const newLayers = computed(() => (template.value?.layers ?? []).filter(l => l.type === 'text' || l.type === 'image'))
 
 const oldLayersByName = computed<Record<string, LayerSelection>>(() => {
   if (!config.value?.templateLayers) return {}

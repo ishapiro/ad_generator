@@ -547,7 +547,7 @@ watch(config, async (c) => {
 
   if (c.templateLayers) {
     try {
-      templateLayers.value = JSON.parse(c.templateLayers)
+      templateLayers.value = (JSON.parse(c.templateLayers) as LayerSelection[]).filter(l => l.type === 'text' || l.type === 'image')
     } catch {
       templateLayers.value = []
     }

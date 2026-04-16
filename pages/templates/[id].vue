@@ -209,7 +209,7 @@ const [{ data, pending, error }, promptsData] = await Promise.all([
 ])
 
 const template = computed(() => data.value ?? null)
-const layers = computed(() => data.value?.layers ?? [])
+const layers = computed(() => (data.value?.layers ?? []).filter(l => l.type === 'text' || l.type === 'image'))
 const promptLibrary = ref<SavedPrompt[]>(promptsData.data.value ?? [])
 
 // Per-layer state keyed by layer name
