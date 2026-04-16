@@ -766,6 +766,7 @@ function popOutReview() {
   const blob = new Blob([html], { type: 'text/html' })
   const url = URL.createObjectURL(blob)
   window.open(url, '_blank', 'width=700,height=820,scrollbars=yes,resizable=yes')
+  closeReview()
 }
 
 function applyPreset(key: keyof typeof REVIEW_PRESETS) {
