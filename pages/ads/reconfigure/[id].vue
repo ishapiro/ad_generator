@@ -17,6 +17,10 @@
         The Templated.io template has been updated. Map your content to the new field layout below.
         Values from fields that still exist have been carried over automatically.
       </p>
+      <div class="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+        <strong class="font-semibold">Tip:</strong> Each field has an <span class="rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-medium text-emerald-700">Included</span> / <span class="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-500">Excluded</span> button in its header.
+        Click it to toggle whether that field is part of this ad profile. Excluded fields are stored but won't be sent when generating an ad.
+      </div>
       <p class="mb-8 text-xs text-slate-400">
         {{ template.width ?? '?' }} × {{ template.height ?? '?' }}px
         <span v-if="newLayers.length" class="ml-1">· {{ newLayers.length }} layers</span>
@@ -96,8 +100,10 @@
           <div
             v-for="layer in newLayers"
             :key="layer.layer"
-            class="rounded-xl border bg-white shadow-sm"
-            :class="isCarriedOver(layer.layer, layer.type) ? 'border-slate-200' : 'border-blue-200'"
+            class="rounded-xl border bg-white shadow-sm transition-opacity"
+            :class="layerIncluded[layer.layer] !== false
+              ? (isCarriedOver(layer.layer, layer.type) ? 'border-slate-200' : 'border-blue-200')
+              : 'border-slate-100 opacity-60'"
           >
             <div class="flex items-center gap-2 px-5 py-3">
               <span
@@ -109,47 +115,60 @@
               <span class="font-medium text-slate-800">{{ layer.layer }}</span>
               <span v-if="layer.description" class="text-xs text-slate-400">· {{ layer.description }}</span>
               <span
-                v-if="!isCarriedOver(layer.layer, layer.type)"
-                class="ml-auto rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700"
+                v-if="layerIncluded[layer.layer] !== false && !isCarriedOver(layer.layer, layer.type)"
+                class="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700"
               >
                 New
               </span>
               <span
-                v-else
-                class="ml-auto rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500"
+                v-else-if="layerIncluded[layer.layer] !== false"
+                class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500"
               >
                 Carried over
               </span>
+              <button
+                type="button"
+                class="ml-auto rounded px-2 py-0.5 text-xs font-medium transition-colors"
+                :class="layerIncluded[layer.layer] !== false
+                  ? 'bg-emerald-100 text-emerald-700 hover:bg-red-100 hover:text-red-600'
+                  : 'bg-slate-100 text-slate-500 hover:bg-emerald-100 hover:text-emerald-700'"
+                @click="layerIncluded[layer.layer] = layerIncluded[layer.layer] === false"
+              >
+                {{ layerIncluded[layer.layer] !== false ? 'Included' : 'Excluded' }}
+              </button>
             </div>
 
-            <div class="border-t border-slate-100 px-5 pb-5 pt-4">
-              <!-- Text layer -->
-              <template v-if="layer.type !== 'image'">
-                <textarea
-                  v-model="layerValues[layer.layer]"
-                  rows="2"
-                  :placeholder="`Enter text for '${layer.layer}'…`"
-                  class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </template>
+            <!-- Card body — hidden when excluded -->
+            <template v-if="layerIncluded[layer.layer] !== false">
+              <div class="border-t border-slate-100 px-5 pb-5 pt-4">
+                <!-- Text layer -->
+                <template v-if="layer.type !== 'image'">
+                  <textarea
+                    v-model="layerValues[layer.layer]"
+                    rows="2"
+                    :placeholder="`Enter text for '${layer.layer}'…`"
+                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </template>
 
-              <!-- Image layer -->
-              <template v-else>
-                <ImageLayerInput
-                  :layer-name="layer.layer"
-                  :prompt="layerValues[layer.layer]"
-                  :r2-key="layerR2Keys[layer.layer]"
-                  :image-mode="layerModes[layer.layer]"
-                  :saved-prompts="promptLibrary"
-                  :profile-id="id"
-                  @update:prompt="layerValues[layer.layer] = $event"
-                  @update:r2-key="layerR2Keys[layer.layer] = $event"
-                  @update:image-mode="layerModes[layer.layer] = $event"
-                  @prompt-saved="promptLibrary.unshift($event)"
-                  @prompt-deleted="promptLibrary = promptLibrary.filter(p => p.id !== $event)"
-                />
-              </template>
-            </div>
+                <!-- Image layer -->
+                <template v-else>
+                  <ImageLayerInput
+                    :layer-name="layer.layer"
+                    :prompt="layerValues[layer.layer]"
+                    :r2-key="layerR2Keys[layer.layer]"
+                    :image-mode="layerModes[layer.layer]"
+                    :saved-prompts="promptLibrary"
+                    :profile-id="id"
+                    @update:prompt="layerValues[layer.layer] = $event"
+                    @update:r2-key="layerR2Keys[layer.layer] = $event"
+                    @update:image-mode="layerModes[layer.layer] = $event"
+                    @prompt-saved="promptLibrary.unshift($event)"
+                    @prompt-deleted="promptLibrary = promptLibrary.filter(p => p.id !== $event)"
+                  />
+                </template>
+              </div>
+            </template>
           </div>
 
           <!-- Error + submit -->
@@ -181,6 +200,7 @@ interface LayerSelection {
   prompt?: string
   r2Key?: string
   imageMode?: string
+  included?: boolean
 }
 
 interface AdConfig {
@@ -257,6 +277,7 @@ function isCarriedOver(layerName: string, layerType: string): boolean {
 const layerValues = reactive<Record<string, string>>({})
 const layerR2Keys = reactive<Record<string, string>>({})
 const layerModes = reactive<Record<string, 'generate' | 'upload'>>({})
+const layerIncluded = reactive<Record<string, boolean>>({})
 
 watch(newLayers, (layers) => {
   for (const layer of layers) {
@@ -269,6 +290,8 @@ watch(newLayers, (layers) => {
       layerR2Keys[layer.layer] = (old && typeMatches) ? (old.r2Key ?? '') : ''
       layerModes[layer.layer] = (old && typeMatches) ? ((old.imageMode as 'generate' | 'upload') ?? 'generate') : 'generate'
     }
+    // Carry over included flag; new layers default to true
+    layerIncluded[layer.layer] = (old && typeMatches) ? (old.included !== false) : true
   }
 }, { immediate: true })
 
@@ -282,13 +305,15 @@ async function saveReconfigured() {
   saving.value = true
   try {
     const templateLayers = newLayers.value.map(l => {
+      const included = layerIncluded[l.layer] !== false
       if (l.type !== 'image') {
-        return { layer: l.layer, type: l.type, value: layerValues[l.layer]?.trim() ?? '' }
+        return { layer: l.layer, type: l.type, value: layerValues[l.layer]?.trim() ?? '', included }
       }
       return {
         layer: l.layer,
         type: l.type,
         imageMode: layerModes[l.layer],
+        included,
         ...(layerModes[l.layer] === 'upload'
           ? { r2Key: layerR2Keys[l.layer] }
           : { prompt: layerValues[l.layer]?.trim() ?? '' }),

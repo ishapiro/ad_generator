@@ -58,53 +58,69 @@
           <div
             v-for="layer in layers"
             :key="layer.layer"
-            class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
+            class="rounded-xl border bg-white shadow-sm transition-opacity"
+            :class="layerIncluded[layer.layer] !== false ? 'border-slate-200' : 'border-slate-100 opacity-60'"
           >
-            <div class="mb-3 flex items-center gap-2">
+            <div class="flex items-center gap-2 px-5 py-3">
               <span
-                class="rounded px-2 py-0.5 text-xs font-semibold uppercase tracking-wide"
+                class="shrink-0 rounded px-2 py-0.5 text-xs font-semibold uppercase tracking-wide"
                 :class="layer.type === 'image' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'"
               >
                 {{ layer.type === 'image' ? 'Image' : 'Text' }}
               </span>
               <span class="font-medium text-slate-800">{{ layer.layer }}</span>
               <span v-if="layer.description" class="ml-1 text-xs text-slate-400">· {{ layer.description }}</span>
+              <button
+                type="button"
+                class="ml-auto rounded px-2 py-0.5 text-xs font-medium transition-colors"
+                :class="layerIncluded[layer.layer] !== false
+                  ? 'bg-emerald-100 text-emerald-700 hover:bg-red-100 hover:text-red-600'
+                  : 'bg-slate-100 text-slate-500 hover:bg-emerald-100 hover:text-emerald-700'"
+                @click="layerIncluded[layer.layer] = layerIncluded[layer.layer] === false"
+              >
+                {{ layerIncluded[layer.layer] !== false ? 'Included' : 'Excluded' }}
+              </button>
             </div>
 
-            <!-- Text layer -->
-            <template v-if="layer.type !== 'image'">
-              <div class="relative">
-                <textarea
-                  v-model="layerValues[layer.layer]"
-                  rows="2"
-                  :placeholder="`Enter text for '${layer.layer}'…`"
-                  class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-                <button
-                  type="button"
-                  class="absolute right-2 top-2 rounded border border-slate-200 bg-white px-2 py-0.5 text-xs text-slate-500 hover:border-blue-400 hover:text-blue-600"
-                  title="Rewrite with AI"
-                  @click="openAiModal(layer.layer)"
-                >
-                  AI
-                </button>
-              </div>
-            </template>
+            <!-- Card body — hidden when excluded -->
+            <template v-if="layerIncluded[layer.layer] !== false">
+              <div class="border-t border-slate-100 px-5 pb-5 pt-4">
+                <!-- Text layer -->
+                <template v-if="layer.type !== 'image'">
+                  <div class="relative">
+                    <textarea
+                      v-model="layerValues[layer.layer]"
+                      rows="2"
+                      :placeholder="`Enter text for '${layer.layer}'…`"
+                      class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                    <button
+                      type="button"
+                      class="absolute right-2 top-2 rounded border border-slate-200 bg-white px-2 py-0.5 text-xs text-slate-500 hover:border-blue-400 hover:text-blue-600"
+                      title="Rewrite with AI"
+                      @click="openAiModal(layer.layer)"
+                    >
+                      AI
+                    </button>
+                  </div>
+                </template>
 
-            <!-- Image layer -->
-            <template v-else>
-              <ImageLayerInput
-                :layer-name="layer.layer"
-                :prompt="layerValues[layer.layer]"
-                :r2-key="layerR2Keys[layer.layer]"
-                :image-mode="layerModes[layer.layer]"
-                :saved-prompts="promptLibrary"
-                @update:prompt="layerValues[layer.layer] = $event"
-                @update:r2-key="layerR2Keys[layer.layer] = $event"
-                @update:image-mode="layerModes[layer.layer] = $event"
-                @prompt-saved="promptLibrary.unshift($event)"
-                @prompt-deleted="promptLibrary = promptLibrary.filter(p => p.id !== $event)"
-              />
+                <!-- Image layer -->
+                <template v-else>
+                  <ImageLayerInput
+                    :layer-name="layer.layer"
+                    :prompt="layerValues[layer.layer]"
+                    :r2-key="layerR2Keys[layer.layer]"
+                    :image-mode="layerModes[layer.layer]"
+                    :saved-prompts="promptLibrary"
+                    @update:prompt="layerValues[layer.layer] = $event"
+                    @update:r2-key="layerR2Keys[layer.layer] = $event"
+                    @update:image-mode="layerModes[layer.layer] = $event"
+                    @prompt-saved="promptLibrary.unshift($event)"
+                    @prompt-deleted="promptLibrary = promptLibrary.filter(p => p.id !== $event)"
+                  />
+                </template>
+              </div>
             </template>
           </div>
 
@@ -200,6 +216,7 @@ const promptLibrary = ref<SavedPrompt[]>(promptsData.data.value ?? [])
 const layerValues = reactive<Record<string, string>>({})
 const layerR2Keys = reactive<Record<string, string>>({})
 const layerModes = reactive<Record<string, 'generate' | 'upload'>>({})
+const layerIncluded = reactive<Record<string, boolean>>({})
 
 watch(layers, (ls) => {
   for (const l of ls) {
@@ -208,6 +225,7 @@ watch(layers, (ls) => {
     }
     if (!(l.layer in layerR2Keys)) layerR2Keys[l.layer] = ''
     if (!(l.layer in layerModes)) layerModes[l.layer] = 'generate'
+    if (!(l.layer in layerIncluded)) layerIncluded[l.layer] = true
   }
 }, { immediate: true })
 
@@ -257,18 +275,16 @@ async function createVariation() {
   creating.value = true
   try {
     const templateLayers = layers.value
-      .filter(l => {
-        if (l.type !== 'image') return layerValues[l.layer]?.trim()
-        return layerModes[l.layer] === 'upload'
-          ? !!layerR2Keys[l.layer]
-          : !!layerValues[l.layer]?.trim()
-      })
       .map(l => {
-        if (l.type !== 'image') return { layer: l.layer, type: l.type, value: layerValues[l.layer]?.trim() }
+        const included = layerIncluded[l.layer] !== false
+        if (l.type !== 'image') {
+          return { layer: l.layer, type: l.type, value: layerValues[l.layer]?.trim(), included }
+        }
         return {
           layer: l.layer,
           type: l.type,
           imageMode: layerModes[l.layer],
+          included,
           ...(layerModes[l.layer] === 'upload'
             ? { r2Key: layerR2Keys[l.layer] }
             : { prompt: layerValues[l.layer]?.trim() }),

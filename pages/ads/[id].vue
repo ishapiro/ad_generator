@@ -20,6 +20,13 @@
             >
               Generate All Copy with AI
             </button>
+            <NuxtLink
+              v-if="isTemplateBased"
+              :to="`/ads/reconfigure/${id}`"
+              class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            >
+              Edit Fields
+            </NuxtLink>
             <button
               type="button"
               class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
@@ -381,6 +388,7 @@ interface LayerSelection {
   prompt?: string
   r2Key?: string
   imageMode?: string
+  included?: boolean
 }
 
 interface SavedPrompt {

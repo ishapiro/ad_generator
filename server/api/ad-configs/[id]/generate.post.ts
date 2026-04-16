@@ -9,6 +9,7 @@ interface LayerSelection {
   prompt?: string
   r2Key?: string
   imageMode?: string
+  included?: boolean
 }
 
 interface BulletStep {
@@ -107,7 +108,8 @@ export default defineEventHandler(async (event) => {
   if (!genRecord) throw createError({ statusCode: 500, message: 'Failed to create generation record' })
 
   try {
-    const layerSelections: LayerSelection[] = JSON.parse(config.templateLayers || '[]')
+    const layerSelections: LayerSelection[] = (JSON.parse(config.templateLayers || '[]') as LayerSelection[])
+      .filter(l => l.included !== false)
 
     let templatedLayers: Record<string, { text?: string; image_url?: string }>
 
