@@ -352,6 +352,13 @@
                   <a :href="`/api/images/${ad.r2Key}`" target="_blank" download class="text-sm text-blue-600 hover:underline">
                     Download
                   </a>
+                  <button
+                    type="button"
+                    class="text-sm text-violet-600 hover:underline"
+                    @click="openReview(ad.r2Key!)"
+                  >
+                    AI Review
+                  </button>
                 </template>
                 <button
                   type="button"
@@ -378,9 +385,74 @@
       </div>
     </div>
   </div>
+
+  <!-- ── AI Review Modal ── -->
+  <div
+    v-if="reviewingAdKey"
+    class="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4"
+    @click.self="closeReview"
+  >
+    <div class="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-xl">
+      <!-- Header -->
+      <div class="flex shrink-0 items-center justify-between border-b border-slate-200 px-6 py-4">
+        <h2 class="text-lg font-semibold text-slate-800">AI Ad Review</h2>
+        <button
+          type="button"
+          class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+          @click="closeReview"
+        >
+          ✕
+        </button>
+      </div>
+
+      <!-- Scrollable body -->
+      <div class="overflow-y-auto p-6 space-y-5">
+        <!-- Ad thumbnail -->
+        <div style="max-width: 260px; overflow: hidden; border-radius: 0.75rem; border: 1px solid #e2e8f0;">
+          <img
+            :src="`/api/images/${reviewingAdKey}`"
+            alt="Ad being reviewed"
+            style="display: block; width: 100%; height: auto; max-width: none;"
+          />
+        </div>
+
+        <!-- Prompt field -->
+        <div>
+          <label class="mb-1.5 block text-sm font-semibold text-slate-700">Review Prompt</label>
+          <textarea
+            v-model="reviewPrompt"
+            rows="7"
+            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+          />
+        </div>
+
+        <!-- Submit button -->
+        <button
+          type="button"
+          :disabled="reviewing || !reviewPrompt.trim()"
+          class="rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:pointer-events-none disabled:opacity-50"
+          @click="submitReview"
+        >
+          {{ reviewing ? 'Reviewing…' : 'Review Ad' }}
+        </button>
+
+        <!-- Error -->
+        <p v-if="reviewError" class="text-sm text-red-600">{{ reviewError }}</p>
+
+        <!-- AI response -->
+        <div v-if="reviewResult" class="rounded-lg border border-violet-200 bg-violet-50 p-4">
+          <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-violet-500">AI Feedback</p>
+          <div class="prose prose-sm max-w-none text-slate-800" v-html="parsedReview" />
+          <p v-if="reviewModel" class="mt-3 text-xs text-slate-400">Generated using {{ reviewModel }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
+import { marked } from 'marked'
+
 interface LayerSelection {
   layer: string
   type: string
@@ -565,6 +637,53 @@ const errorMsg = ref('')
 const showGeneratedModal = ref(false)
 const highlightedAdId = ref<number | null>(null)
 const viewingImageKey = ref<string | null>(null)
+
+// ── AI ad review ──
+const DEFAULT_REVIEW_PROMPT = `Role: Act as a world-class Direct Response Copywriter and Conversion Rate Optimization (CRO) expert with 15 years of experience in Meta/Google/LinkedIn ads.
+
+Task: Please audit the following ad and provide 3-5 specific, actionable suggestions to increase its conversion rate.`
+
+const reviewingAdKey = ref<string | null>(null)
+const reviewPrompt = ref(DEFAULT_REVIEW_PROMPT)
+const reviewing = ref(false)
+const reviewResult = ref<string | null>(null)
+const reviewError = ref<string | null>(null)
+const reviewModel = ref('')
+const parsedReview = computed(() => reviewResult.value ? marked(reviewResult.value) as string : '')
+
+function openReview(r2Key: string) {
+  reviewingAdKey.value = r2Key
+  reviewPrompt.value = DEFAULT_REVIEW_PROMPT
+  reviewResult.value = null
+  reviewError.value = null
+  reviewModel.value = ''
+}
+
+function closeReview() {
+  reviewingAdKey.value = null
+}
+
+async function submitReview() {
+  if (!reviewingAdKey.value) return
+  reviewing.value = true
+  reviewError.value = null
+  reviewResult.value = null
+  try {
+    const res = await $fetch<{ review: string; model: string }>('/api/ai/review-ad', {
+      method: 'POST',
+      body: { r2Key: reviewingAdKey.value, prompt: reviewPrompt.value.trim() },
+    })
+    reviewResult.value = res.review
+    reviewModel.value = res.model
+  } catch (e: unknown) {
+    reviewError.value =
+      e && typeof e === 'object' && 'data' in e
+        ? (e as { data: { message?: string } }).data?.message ?? 'Review failed'
+        : 'Review failed'
+  } finally {
+    reviewing.value = false
+  }
+}
 
 // ── AI copy generation ──
 const aiModalLayer = ref('')   // template layer name OR legacy field key, '' = closed
