@@ -13,5 +13,11 @@ export default defineEventHandler(async (event) => {
     const err = await res.text()
     throw createError({ statusCode: res.status, message: `Templated API error: ${err}` })
   }
-  return res.json()
+  const data = await res.json() as { thumbnail?: string; updatedAt?: string; [key: string]: unknown }
+
+  // Append updatedAt as a cache-busting param so browsers re-fetch after template edits.
+  if (data.thumbnail && data.updatedAt) {
+    data.thumbnail = `${data.thumbnail}?v=${encodeURIComponent(data.updatedAt)}`
+  }
+  return data
 })

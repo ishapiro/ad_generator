@@ -417,11 +417,31 @@
         <!-- Prompt field -->
         <div>
           <label class="mb-1.5 block text-sm font-semibold text-slate-700">Review Prompt</label>
+          <!-- Preset buttons -->
+          <div class="mb-2 flex flex-wrap gap-2">
+            <button
+              type="button"
+              class="rounded-lg border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-medium text-violet-700 transition hover:bg-violet-100"
+              @click="applyPreset('conversion')"
+            >
+              Conversion Review
+            </button>
+            <button
+              type="button"
+              class="rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100"
+              @click="applyPreset('design')"
+            >
+              Colors &amp; Design Review
+            </button>
+          </div>
           <textarea
             v-model="reviewPrompt"
             rows="7"
             class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
           />
+          <p class="mt-1 text-xs text-slate-400">
+            Text field values and character counts are automatically appended to this prompt before sending.
+          </p>
         </div>
 
         <!-- Submit button -->
@@ -439,7 +459,16 @@
 
         <!-- AI response -->
         <div v-if="reviewResult" class="rounded-lg border border-violet-200 bg-violet-50 p-4">
-          <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-violet-500">AI Feedback</p>
+          <div class="mb-3 flex items-center justify-between">
+            <p class="text-xs font-semibold uppercase tracking-wide text-violet-500">AI Feedback</p>
+            <button
+              type="button"
+              class="rounded px-2 py-0.5 text-xs font-medium text-violet-600 hover:bg-violet-100"
+              @click="popOutReview"
+            >
+              Pop Out ↗
+            </button>
+          </div>
           <div class="prose prose-sm max-w-none text-slate-800" v-html="parsedReview" />
           <p v-if="reviewModel" class="mt-3 text-xs text-slate-400">Generated using {{ reviewModel }}</p>
         </div>
@@ -651,12 +680,44 @@ const highlightedAdId = ref<number | null>(null)
 const viewingImageKey = ref<string | null>(null)
 
 // ── AI ad review ──
-const DEFAULT_REVIEW_PROMPT = `Role: Act as a world-class Direct Response Copywriter and Conversion Rate Optimization (CRO) expert with 15 years of experience in Meta/Google/LinkedIn ads.
+const REVIEW_PRESETS = {
+  conversion: `You are a senior Direct Response Copywriter and Conversion Rate Optimization (CRO) specialist with 15 years of experience running high-performing Meta, Google, and LinkedIn ad campaigns.
 
-Task: Please audit the following ad and provide 3-5 specific, actionable suggestions to increase its conversion rate.`
+Analyze the ad image and evaluate it against proven direct response principles:
+- Clarity of value proposition: does the viewer instantly understand the offer?
+- Headline strength: is it specific, benefit-driven, and scroll-stopping?
+- CTA effectiveness: is it clear, urgent, and low-friction?
+- Credibility signals: social proof, trust indicators, or specificity of claims
+- Visual hierarchy: does the eye flow naturally toward the CTA?
+- Message-to-market fit: does the copy speak directly to the target audience's pain or desire?
+
+Provide exactly 3–5 specific, actionable recommendations to increase click-through and conversion rate. For each recommendation:
+1. Name the specific element to change
+2. Explain why it is underperforming
+3. Give a concrete rewrite or improvement example
+
+Be direct and specific. Do not give generic or obvious advice.`,
+
+  design: `You are a senior brand designer and visual communication specialist with 15 years of experience creating high-converting digital advertisements across Meta, Google, and LinkedIn.
+
+Analyze the ad image and evaluate it against professional design and visual communication principles:
+- Color palette: harmony, contrast ratios, brand consistency, and emotional tone
+- Typography: hierarchy, readability, font pairing, and size relationships between headline, body, and CTA
+- Visual hierarchy: does the eye flow naturally from the primary message to the supporting elements to the CTA?
+- Layout and whitespace: balance, breathing room, and spatial relationships between elements
+- Image quality and relevance: does the visual reinforce or distract from the message?
+- Overall polish: does the ad look professional and trustworthy at a glance?
+
+Provide exactly 3–5 specific, actionable recommendations to improve the visual design. For each recommendation:
+1. Name the specific design element
+2. Explain the current issue and its impact on performance
+3. Give a concrete improvement with specifics (e.g., suggested color contrast, font size, spacing adjustment)
+
+Be direct and specific. Do not give generic or obvious advice.`,
+}
 
 const reviewingAdKey = ref<string | null>(null)
-const reviewPrompt = ref(DEFAULT_REVIEW_PROMPT)
+const reviewPrompt = ref(REVIEW_PRESETS.conversion)
 const reviewing = ref(false)
 const reviewResult = ref<string | null>(null)
 const reviewError = ref<string | null>(null)
@@ -665,7 +726,7 @@ const parsedReview = computed(() => reviewResult.value ? marked(reviewResult.val
 
 function openReview(r2Key: string) {
   reviewingAdKey.value = r2Key
-  reviewPrompt.value = DEFAULT_REVIEW_PROMPT
+  reviewPrompt.value = REVIEW_PRESETS.conversion
   reviewResult.value = null
   reviewError.value = null
   reviewModel.value = ''
@@ -675,15 +736,64 @@ function closeReview() {
   reviewingAdKey.value = null
 }
 
+function popOutReview() {
+  if (!reviewResult.value || !reviewingAdKey.value) return
+  const imageUrl = `${window.location.origin}/api/images/${reviewingAdKey.value}`
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ad Review</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; max-width: 620px; margin: 2rem auto; padding: 0 1.25rem 3rem; color: #1e293b; line-height: 1.6; }
+    img { display: block; width: 100%; height: auto; border-radius: 0.75rem; border: 1px solid #e2e8f0; margin-bottom: 1.75rem; }
+    h1 { font-size: 1.1rem; font-weight: 700; color: #5b21b6; margin-bottom: 1.25rem; letter-spacing: -0.01em; }
+    h2, h3 { font-weight: 600; margin-top: 1.5em; margin-bottom: 0.4em; color: #0f172a; }
+    p { margin: 0.65em 0; }
+    ul, ol { padding-left: 1.4rem; margin: 0.5em 0; }
+    li { margin-bottom: 0.35em; }
+    strong { font-weight: 600; color: #0f172a; }
+    hr { border: none; border-top: 1px solid #e2e8f0; margin: 1.5em 0; }
+  </style>
+</head>
+<body>
+  <img src="${imageUrl}" alt="Reviewed ad" />
+  <h1>AI Ad Review</h1>
+  ${parsedReview.value}
+</body>
+</html>`
+  const blob = new Blob([html], { type: 'text/html' })
+  const url = URL.createObjectURL(blob)
+  window.open(url, '_blank', 'width=700,height=820,scrollbars=yes,resizable=yes')
+}
+
+function applyPreset(key: keyof typeof REVIEW_PRESETS) {
+  reviewPrompt.value = REVIEW_PRESETS[key]
+}
+
 async function submitReview() {
   if (!reviewingAdKey.value) return
   reviewing.value = true
   reviewError.value = null
   reviewResult.value = null
+
+  // Append text field lengths so the AI knows to keep suggestions in range
+  const textFields = templateLayers.value.filter(
+    l => l.included !== false && l.type !== 'image' && l.value?.trim(),
+  )
+  let fullPrompt = reviewPrompt.value.trim()
+  if (textFields.length > 0) {
+    const lines = textFields
+      .map(l => `- ${l.layer}: "${l.value}" (${l.value!.trim().length} chars)`)
+      .join('\n')
+    fullPrompt += `\n\nCurrent text field values and lengths — keep any suggested copy revisions approximately these character counts:\n${lines}`
+  }
+
   try {
     const res = await $fetch<{ review: string; model: string }>('/api/ai/review-ad', {
       method: 'POST',
-      body: { r2Key: reviewingAdKey.value, prompt: reviewPrompt.value.trim() },
+      body: { r2Key: reviewingAdKey.value, prompt: fullPrompt },
     })
     reviewResult.value = res.review
     reviewModel.value = res.model
