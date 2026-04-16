@@ -30,14 +30,12 @@
       >
         <div style="overflow: hidden; border-radius: 0.75rem; border: 1px solid #e2e8f0;">
           <img
-            v-if="tpl.thumbnail && tpl.thumbnailReady"
+            v-if="tpl.thumbnail"
             :src="tpl.thumbnail"
             :alt="tpl.name"
             style="display: block; width: 100%; height: auto; max-width: none;"
+            @error="(e) => (e.target as HTMLImageElement).style.display = 'none'"
           />
-          <div v-else-if="tpl.thumbnail && !tpl.thumbnailReady" class="thumbnail-empty" style="background:#fffbeb; color:#b45309;">
-            Thumbnail generating — please wait, then refresh.
-          </div>
           <div v-else class="thumbnail-empty">No preview</div>
         </div>
         <p class="mt-2 font-semibold text-slate-900 group-hover:text-blue-600">{{ tpl.name }}</p>
@@ -55,7 +53,6 @@ interface TemplatedTemplate {
   id: string
   name: string
   thumbnail?: string
-  thumbnailReady?: boolean
   width?: number
   height?: number
   layersCount?: number

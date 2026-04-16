@@ -85,22 +85,20 @@
       <!-- ══ TEMPLATE-BASED EDITOR ══ -->
       <template v-if="isTemplateBased">
         <div class="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_2fr]">
-          <!-- Left: template thumbnail -->
+          <!-- Left: thumbnail — shows latest generated ad if available, otherwise template preview -->
           <div class="xl:sticky xl:top-6 xl:self-start">
-            <div class="overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+            <div style="overflow: hidden; border-radius: 0.75rem; border: 1px solid #e2e8f0; background: #f1f5f9;">
               <img
-                v-if="templateThumbnail"
-                :src="templateThumbnail"
-                alt="Template preview"
-                :width="templateWidth ?? 1080"
-                :height="templateHeight ?? 1080"
-                class="w-full h-auto"
+                v-if="previewImageSrc"
+                :src="previewImageSrc"
+                :alt="previewCaption"
+                style="display: block; width: 100%; height: auto; max-width: none;"
               />
               <div v-else class="flex h-40 items-center justify-center text-xs text-slate-400">
                 Loading preview…
               </div>
             </div>
-            <p class="mt-2 text-center text-xs text-slate-400">Original Templated.io Template</p>
+            <p class="mt-2 text-center text-xs text-slate-400">{{ previewCaption }}</p>
           </div>
 
           <!-- Right: layer editor -->
@@ -529,6 +527,18 @@ const promptLibrary = ref<SavedPrompt[]>(promptsRes.data.value ?? [])
 const config = computed(() => data.value?.config ?? null)
 const generatedAds = computed(() => data.value?.generatedAds ?? [])
 
+const latestCompleteAd = computed(() =>
+  generatedAds.value.find(a => a.status === 'complete' && a.r2Key) ?? null,
+)
+
+const previewImageSrc = computed(() =>
+  latestCompleteAd.value ? `/api/images/${latestCompleteAd.value.r2Key}` : (templateThumbnail.value ?? null),
+)
+
+const previewCaption = computed(() =>
+  latestCompleteAd.value ? 'Latest generated ad' : 'Original Templated.io template',
+)
+
 // Detect mode
 const isTemplateBased = computed(() => !!config.value?.templateId && config.value?.templateLayers !== null)
 
@@ -566,10 +576,12 @@ watch(config, async (c) => {
   }
 }, { immediate: true })
 
-// Detect when the Templated.io template's layer structure has changed since the profile was saved
+// Detect when the Templated.io template's layer structure has changed since the profile was saved.
+// Both sides filter to text/image only — shape layers are excluded from profiles and must not trigger a false positive.
 const templateChanged = computed(() => {
   if (!isTemplateBased.value || !templateLiveLayers.value.length || !templateLayers.value.length) return false
-  const live = templateLiveLayers.value.map(l => `${l.layer}::${l.type}`).sort().join(',')
+  const editableLive = templateLiveLayers.value.filter(l => l.type === 'text' || l.type === 'image')
+  const live = editableLive.map(l => `${l.layer}::${l.type}`).sort().join(',')
   const stored = templateLayers.value.map(l => `${l.layer}::${l.type}`).sort().join(',')
   return live !== stored
 })
