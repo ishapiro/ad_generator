@@ -29,16 +29,16 @@
       <div
         v-for="config in adConfigs"
         :key="config.id"
-        class="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-5 py-4 shadow-sm"
+        class="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white px-5 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between"
       >
-        <div>
+        <div class="min-w-0">
           <p class="font-semibold text-slate-900">{{ config.name }}</p>
           <p class="mt-0.5 text-sm text-slate-500">{{ config.headline }}</p>
           <p class="text-xs text-slate-400">
             Created {{ new Date(config.createdAt ?? '').toLocaleDateString() }}
           </p>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex flex-wrap items-center gap-2">
           <NuxtLink
             :to="`/ads/${config.id}`"
             class="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"

@@ -6,10 +6,12 @@
   html {
     scroll-behavior: smooth;
     text-size-adjust: 100%;
+    overflow-x: hidden;
   }
 
   body {
     @apply bg-slate-50 font-sans text-slate-800 antialiased;
+    overflow-x: hidden;
   }
 
   ::selection {
