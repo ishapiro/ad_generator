@@ -513,3 +513,71 @@ Columns are defined in `server/utils/db/schema.ts` using Drizzle ORM. After addi
 4. Build and test locally (`npm run dev`)
 5. Deploy code: `npm run deploy`
 6. Apply migration to production: `npm run db:migrate -- --remote`
+
+---
+
+## Google OAuth Auth Pattern
+
+**This project is the reference implementation** for Google OAuth + users + projects + role-based access on Nuxt 3 + Cloudflare Workers. When copying auth to a new project, use this project (and Backtick for simpler auth) as the source.
+
+### The one rule that matters
+
+Use a **non-global** `middleware/auth.ts`. Never `middleware/auth.global.ts`.
+
+**Why global middleware breaks locally:** Cloudflare Workers with `custom_domain = true` in `wrangler.toml` causes SSR sub-requests (from `useFetch`) to resolve to the custom domain even when running on `localhost:8787`. A global middleware runs on every SSR render — its `useFetch('/api/auth/session')` sub-request hits the *production* Worker, which may not have the new auth code, returning a 500.
+
+### Correct middleware pattern
+
+**`middleware/auth.ts`** — non-global, pages opt in via `definePageMeta`:
+```ts
+export default defineNuxtRouteMiddleware(async (to) => {
+  const { data } = await useFetch<{ user: { id: number; email: string; name: string | null; role: string } | null }>(
+    '/api/auth/session',
+    { key: 'auth-session' },
+  )
+  useState('auth-user', () => data.value?.user ?? null)
+  if (!data.value?.user) {
+    return navigateTo('/login?redirect=' + encodeURIComponent(to.fullPath))
+  }
+})
+```
+
+**`middleware/admin.ts`** — reads `useState` set by auth middleware:
+```ts
+export default defineNuxtRouteMiddleware(() => {
+  const user = useState<{ role: string } | null>('auth-user')
+  if (!user.value) return navigateTo('/login')
+  if (user.value.role !== 'admin') return navigateTo('/')
+})
+```
+
+**Page opt-in:**
+```ts
+definePageMeta({ middleware: ['auth'] })           // regular pages
+definePageMeta({ middleware: ['auth', 'admin'] })  // admin pages — auth must run first
+```
+
+**All `useFetch` on protected pages** must use `server: false`:
+```ts
+const { data } = await useFetch('/api/resource', { key: '...', server: false })
+```
+
+### Environment variables (`.dev.vars` + Wrangler secrets)
+
+```
+NUXT_GOOGLE_CLIENT_ID=
+NUXT_GOOGLE_CLIENT_SECRET=
+NUXT_SESSION_SECRET=          # random string for JWT signing
+# NUXT_OAUTH_REDIRECT_ORIGIN  # leave blank in production; http://localhost:8787 only if needed locally
+```
+
+### Key server files
+
+| File | Purpose |
+|------|---------|
+| `server/utils/session.ts` | JWT create/verify, cookie helpers |
+| `server/utils/auth.ts` | `requireSession()`, `requireAdmin()`, `requireProjectAccess()` |
+| `server/api/auth/google.get.ts` | Redirects to Google OAuth |
+| `server/api/auth/callback.get.ts` | Handles callback, upserts user, sets JWT cookie |
+| `server/api/auth/session.get.ts` | Returns current user from JWT |
+| `server/api/auth/logout.get.ts` | Clears cookie |
