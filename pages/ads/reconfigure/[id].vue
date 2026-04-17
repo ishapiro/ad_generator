@@ -240,7 +240,7 @@ const id = Number(route.params.id)
 const { data, pending } = await useAsyncData(`reconfigure-${id}`, async () => {
   const res = await $fetch<{ config: AdConfig }>(`/api/ad-configs/${id}`)
   if (!res.config.templateId) return { config: res.config, template: null as TemplatedTemplate | null }
-  const template = await $fetch<TemplatedTemplate>(`/api/templated/templates/${res.config.templateId}`)
+  const template = await $fetch<TemplatedTemplate>(`/api/templated/templates/${res.config.templateId}`, { query: { projectId: res.config.projectId } })
   return { config: res.config, template }
 })
 

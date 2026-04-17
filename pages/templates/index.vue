@@ -14,7 +14,7 @@
     <div v-if="pending" class="text-slate-500">Loading templates…</div>
 
     <div v-else-if="error" class="rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
-      Failed to load templates: {{ error.message }}
+      Failed to load templates: {{ (error as any).data?.message ?? error.message }}
     </div>
 
     <div v-else-if="!templates?.length" class="rounded-lg border-2 border-dashed border-slate-200 py-20 text-center">
@@ -68,7 +68,10 @@ function templateUrl(id: string) {
   return projectId.value ? `/templates/${id}?projectId=${projectId.value}` : `/templates/${id}`
 }
 
-const { data, pending, error } = await useFetch<TemplatedTemplate[]>('/api/templated/templates', { server: false })
+const { data, pending, error } = await useFetch<TemplatedTemplate[]>('/api/templated/templates', {
+  query: computed(() => ({ projectId: projectId.value })),
+  server: false,
+})
 const templates = computed(() => data.value ?? [])
 </script>
 

@@ -599,7 +599,7 @@ watch(config, async (c) => {
 
   if (c.templateId && !templateThumbnail.value) {
     try {
-      const tpl = await $fetch<TemplatedTemplate>(`/api/templated/templates/${c.templateId}`)
+      const tpl = await $fetch<TemplatedTemplate>(`/api/templated/templates/${c.templateId}`, { query: { projectId: c.projectId } })
       templateThumbnail.value = tpl.thumbnail ?? null
       templateWidth.value = tpl.width ?? null
       templateHeight.value = tpl.height ?? null

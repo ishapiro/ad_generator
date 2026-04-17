@@ -2,32 +2,39 @@
   <div class="mx-auto max-w-wide px-4 py-10">
     <div v-if="pending" class="text-sm text-slate-500">Loading…</div>
 
-    <!-- Templated API key prompt -->
+    <!-- Templated API key modal -->
     <div
       v-if="showApiKeyPrompt"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      :class="['fixed inset-0 z-50 flex items-center justify-center bg-black/50', apiKeyExists ? 'cursor-default' : '']"
+      @click.self="apiKeyExists ? showApiKeyPrompt = false : undefined"
     >
       <div class="w-full max-w-md rounded-xl bg-white p-6 shadow-lg">
-        <h2 class="text-lg font-semibold text-slate-900">Templated API Key Required</h2>
+        <h2 class="text-lg font-semibold text-slate-900">{{ apiKeyExists ? 'Change Templated API Key' : 'Templated API Key Required' }}</h2>
         <p class="mt-2 text-sm text-slate-600">
-          This project doesn't have a Templated.io API key set. Enter it below to enable access to your templates (ad layouts). This key is only used on our servers and not exposed to the front end.
+          {{ apiKeyExists
+            ? 'Enter a new Templated.io API key to replace the existing one. This key is only used on our servers and is never exposed to the front end.'
+            : "This project doesn't have a Templated.io API key set. Enter it below to enable access to your templates (ad layouts). This key is only used on our servers and not exposed to the front end."
+          }}
         </p>
         <form class="mt-4 space-y-4" @submit.prevent="saveApiKey">
           <div>
             <label class="mb-1 block text-sm font-medium text-slate-700">API Key</label>
             <input v-model="apiKeyInput" type="text" required placeholder="Templated.io API key" autofocus
-              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              @input="keyStatus = null" />
+            <p v-if="keyStatus === 'valid'" class="mt-1 text-sm text-emerald-600">✓ Key is valid</p>
+            <p v-else-if="keyStatus === 'invalid'" class="mt-1 text-sm text-red-600">✗ {{ keyStatusMessage }}</p>
           </div>
           <p v-if="apiKeyError" class="text-sm text-red-600">{{ apiKeyError }}</p>
           <div class="flex justify-end gap-3">
-            <button type="button" class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" @click="showApiKeyPrompt = false">Skip</button>
-            <button type="submit" :disabled="savingApiKey || !apiKeyInput.trim()" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:pointer-events-none disabled:opacity-50">{{ savingApiKey ? 'Saving…' : 'Save' }}</button>
+            <button v-if="apiKeyExists" type="button" class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" @click="showApiKeyPrompt = false">Cancel</button>
+            <button type="submit" :disabled="savingApiKey || !apiKeyInput.trim()" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:pointer-events-none disabled:opacity-50">{{ savingApiKey ? 'Testing…' : 'Save' }}</button>
           </div>
         </form>
       </div>
     </div>
 
-    <template v-else-if="project">
+    <template v-if="project">
       <!-- Header -->
       <div class="flex items-center gap-2 text-sm text-slate-500">
         <NuxtLink to="/" class="hover:text-slate-700">Projects</NuxtLink>
@@ -40,6 +47,13 @@
           <h1 class="text-2xl font-bold text-slate-900">{{ project.name }}</h1>
           <p v-if="project.description" class="mt-1 text-sm text-slate-500">{{ project.description }}</p>
         </div>
+        <button
+          type="button"
+          class="shrink-0 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
+          @click="openChangeApiKey"
+        >
+          {{ apiKeyExists ? 'Change API Key' : 'Set API Key' }}
+        </button>
       </div>
 
       <!-- Action cards -->
@@ -93,7 +107,7 @@
       </div>
     </template>
 
-    <div v-else class="mt-10 text-center text-sm text-slate-500">Project not found.</div>
+    <div v-else-if="!pending" class="mt-10 text-center text-sm text-slate-500">Project not found.</div>
   </div>
 </template>
 
@@ -114,21 +128,43 @@ watch(project, (p) => {
   if (p) activeProject.value = { id: p.id, name: p.name }
 }, { immediate: true })
 
-// Templated API key prompt
+// Templated API key modal
 const showApiKeyPrompt = ref(false)
 const apiKeyInput = ref('')
 const savingApiKey = ref(false)
 const apiKeyError = ref<string | null>(null)
+const keyStatus = ref<'valid' | 'invalid' | null>(null)
+const keyStatusMessage = ref('')
+
+const apiKeyExists = computed(() => !!project.value?.templatedApiKey)
 
 watch(project, (p) => {
   if (p && !p.templatedApiKey) showApiKeyPrompt.value = true
 }, { immediate: true })
 
+function openChangeApiKey() {
+  apiKeyInput.value = ''
+  apiKeyError.value = null
+  keyStatus.value = null
+  showApiKeyPrompt.value = true
+}
+
 async function saveApiKey() {
   if (!project.value) return
   apiKeyError.value = null
+  keyStatus.value = null
   savingApiKey.value = true
   try {
+    const test = await $fetch<{ valid: boolean; message?: string }>('/api/templated/test-key', {
+      method: 'POST',
+      body: { apiKey: apiKeyInput.value.trim() },
+    })
+    if (!test.valid) {
+      keyStatus.value = 'invalid'
+      keyStatusMessage.value = test.message ?? 'Invalid API key'
+      return
+    }
+    keyStatus.value = 'valid'
     await $fetch(`/api/projects/${project.value.id}/api-key`, {
       method: 'PUT',
       body: { templatedApiKey: apiKeyInput.value.trim() },

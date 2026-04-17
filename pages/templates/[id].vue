@@ -209,7 +209,7 @@ const id = route.params.id as string
 const projectId = route.query.projectId ? Number(route.query.projectId) : null
 
 const [{ data, pending, error }, promptsData] = await Promise.all([
-  useFetch<TemplatedTemplate>(`/api/templated/templates/${id}`, { server: false }),
+  useFetch<TemplatedTemplate>(`/api/templated/templates/${id}`, { query: { projectId }, server: false }),
   useFetch<SavedPrompt[]>('/api/prompts', { server: false }),
 ])
 

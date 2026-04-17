@@ -1,7 +1,7 @@
 <template>
   <div class="mx-auto max-w-wide px-4 py-10">
     <div class="mb-6 flex items-center gap-3">
-      <NuxtLink to="/ads" class="text-sm text-slate-500 hover:text-slate-700">← Back</NuxtLink>
+      <NuxtLink :to="backUrl" class="text-sm text-slate-500 hover:text-slate-700">← Back</NuxtLink>
       <h1 class="text-2xl font-bold text-slate-900">New Ad Config (Manual)</h1>
     </div>
 
@@ -58,7 +58,7 @@
         >
           {{ saving ? 'Saving…' : 'Save' }}
         </button>
-        <NuxtLink to="/ads" class="rounded-lg border border-slate-300 px-5 py-2 text-slate-700 hover:bg-slate-50">
+        <NuxtLink :to="backUrl" class="rounded-lg border border-slate-300 px-5 py-2 text-slate-700 hover:bg-slate-50">
           Cancel
         </NuxtLink>
       </div>
@@ -68,6 +68,10 @@
 
 <script setup lang="ts">
 definePageMeta({ middleware: ['auth'] })
+
+const route = useRoute()
+const projectId = computed(() => route.query.projectId ? Number(route.query.projectId) : null)
+const backUrl = computed(() => projectId.value ? `/ads?projectId=${projectId.value}` : '/ads')
 
 const saving = ref(false)
 const error = ref<string | null>(null)
@@ -97,9 +101,9 @@ async function save() {
   try {
     const created = await $fetch<{ id: number }>('/api/ad-configs', {
       method: 'POST',
-      body: form,
+      body: { ...form, projectId: projectId.value },
     })
-    clearNuxtData('ad-configs-index')
+    clearNuxtData(`ad-configs-index-${projectId.value ?? 'all'}`)
     await navigateTo(`/ads/${created.id}`)
   } catch (e: unknown) {
     error.value =

@@ -86,7 +86,11 @@ const route = useRoute()
 const projectId = computed(() => route.query.projectId ? Number(route.query.projectId) : null)
 const templatesUrl = computed(() => projectId.value ? `/templates?projectId=${projectId.value}` : '/templates')
 
-const { data, pending, refresh } = await useFetch<{ adConfigs: AdConfig[] }>('/api/ad-configs', { key: 'ad-configs-index', server: false })
+const { data, pending, refresh } = await useFetch<{ adConfigs: AdConfig[] }>('/api/ad-configs', {
+  key: () => `ad-configs-index-${projectId.value ?? 'all'}`,
+  query: computed(() => ({ projectId: projectId.value })),
+  server: false,
+})
 const adConfigs = computed(() => data.value?.adConfigs ?? [])
 
 const generatingId = ref<number | null>(null)

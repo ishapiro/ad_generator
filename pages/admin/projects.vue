@@ -118,7 +118,6 @@
     <div
       v-if="editProjectId !== null"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      @click.self="editProjectId = null"
     >
       <div class="w-full max-w-md rounded-xl bg-white p-6 shadow-lg">
         <h2 class="text-lg font-semibold text-slate-900">Edit Project</h2>
@@ -135,8 +134,41 @@
           </div>
           <div>
             <label class="mb-1 block text-sm font-medium text-slate-700">Templated API Key <span class="text-slate-400">(optional)</span></label>
-            <input v-model="editTemplatedApiKey" type="text" placeholder="Templated.io API key"
-              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+            <div class="relative">
+              <input
+                v-model="editTemplatedApiKey"
+                :type="showEditApiKey ? 'text' : 'password'"
+                placeholder="key not set"
+                class="w-full rounded-lg border border-slate-300 py-2 pl-3 pr-9 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                @input="onEditApiKeyInput"
+                @change="testEditApiKey"
+              />
+              <button
+                type="button"
+                class="absolute inset-y-0 right-2 flex items-center text-slate-400 hover:text-slate-600"
+                tabindex="-1"
+                @click="showEditApiKey = !showEditApiKey"
+              >
+                <!-- eye-off -->
+                <svg v-if="showEditApiKey" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                </svg>
+                <!-- eye -->
+                <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              </button>
+            </div>
+            <p v-if="editKeyStatus === 'testing'" class="mt-1 text-xs text-slate-500">Testing key…</p>
+            <p v-else-if="editKeyStatus === 'valid'" class="mt-1 text-xs text-emerald-600">✓ Key is valid</p>
+            <p v-else-if="editKeyStatus === 'invalid'" class="mt-1 text-xs text-red-600">✗ {{ editKeyStatusMessage }}</p>
+            <button
+              v-if="editTemplatedApiKey.trim()"
+              type="button"
+              class="mt-1 text-xs font-medium text-red-600 hover:underline"
+              @click="editTemplatedApiKey = ''; editKeyStatus = null"
+            >Clear key</button>
           </div>
           <p v-if="editError" class="text-sm text-red-600">{{ editError }}</p>
           <div class="flex justify-end gap-3">
@@ -268,6 +300,9 @@ const editProjectId = ref<number | null>(null)
 const editName = ref('')
 const editDescription = ref('')
 const editTemplatedApiKey = ref('')
+const showEditApiKey = ref(false)
+const editKeyStatus = ref<'testing' | 'valid' | 'invalid' | null>(null)
+const editKeyStatusMessage = ref('')
 const saving = ref(false)
 const editError = ref<string | null>(null)
 
@@ -276,7 +311,30 @@ function openEdit(p: ProjectRow) {
   editName.value = p.name
   editDescription.value = p.description ?? ''
   editTemplatedApiKey.value = p.templatedApiKey ?? ''
+  showEditApiKey.value = false
+  editKeyStatus.value = null
   editError.value = null
+}
+
+function onEditApiKeyInput() {
+  editKeyStatus.value = null
+}
+
+async function testEditApiKey() {
+  const key = editTemplatedApiKey.value.trim()
+  if (!key) { editKeyStatus.value = null; return }
+  editKeyStatus.value = 'testing'
+  try {
+    const res = await $fetch<{ valid: boolean; message?: string }>('/api/templated/test-key', {
+      method: 'POST',
+      body: { apiKey: key },
+    })
+    editKeyStatus.value = res.valid ? 'valid' : 'invalid'
+    editKeyStatusMessage.value = res.message ?? 'Invalid API key'
+  } catch {
+    editKeyStatus.value = 'invalid'
+    editKeyStatusMessage.value = 'Could not reach Templated.io'
+  }
 }
 
 async function saveEdit() {
@@ -284,9 +342,23 @@ async function saveEdit() {
   editError.value = null
   saving.value = true
   try {
+    const key = editTemplatedApiKey.value.trim()
+    if (key && editKeyStatus.value !== 'valid') {
+      editKeyStatus.value = 'testing'
+      const test = await $fetch<{ valid: boolean; message?: string }>('/api/templated/test-key', {
+        method: 'POST',
+        body: { apiKey: key },
+      })
+      editKeyStatus.value = test.valid ? 'valid' : 'invalid'
+      editKeyStatusMessage.value = test.message ?? 'Invalid API key'
+      if (!test.valid) {
+        editError.value = 'Please enter a valid Templated.io API key before saving.'
+        return
+      }
+    }
     await $fetch(`/api/admin/projects/${editProjectId.value}`, {
       method: 'PUT',
-      body: { name: editName.value.trim(), description: editDescription.value.trim() || null, templatedApiKey: editTemplatedApiKey.value.trim() || null },
+      body: { name: editName.value.trim(), description: editDescription.value.trim() || null, templatedApiKey: key || null },
     })
     editProjectId.value = null
     await refreshProjects()

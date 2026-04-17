@@ -1,10 +1,23 @@
+import { eq } from 'drizzle-orm'
+import { projects } from '~/server/utils/db/schema'
 import { requireSession } from '~/server/utils/auth'
 
 export default defineEventHandler(async (event) => {
   await requireSession(event)
-  const cfg = useRuntimeConfig(event)
-  const apiKey = cfg.templatedApiKey as string
-  if (!apiKey) throw createError({ statusCode: 500, message: 'Missing NUXT_TEMPLATED_API_KEY' })
+
+  const projectId = Number(getQuery(event).projectId)
+  if (!Number.isFinite(projectId)) throw createError({ statusCode: 400, message: 'Missing or invalid projectId' })
+
+  const db = useDb(event)
+  const [project] = await db
+    .select({ templatedApiKey: projects.templatedApiKey })
+    .from(projects)
+    .where(eq(projects.id, projectId))
+    .limit(1)
+
+  if (!project) throw createError({ statusCode: 404, message: 'Project not found' })
+  const apiKey = project.templatedApiKey
+  if (!apiKey) throw createError({ statusCode: 400, message: 'This project has no Templated.io API key set.' })
 
   const res = await fetch('https://api.templated.io/v1/templates', {
     headers: { Authorization: `Bearer ${apiKey}` },
@@ -15,8 +28,6 @@ export default defineEventHandler(async (event) => {
   }
   const data = await res.json() as Array<{ id: string; name: string; thumbnail?: string; updatedAt?: string; [key: string]: unknown }>
 
-  // Append updatedAt as a cache-busting query param so browsers re-fetch
-  // the thumbnail whenever the template is saved in Templated.io.
   return data.map(tpl => ({
     ...tpl,
     thumbnail: tpl.thumbnail && tpl.updatedAt
