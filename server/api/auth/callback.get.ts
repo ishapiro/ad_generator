@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm'
-import { users, type User } from '~/server/utils/db/schema'
+import { users, projectMembers, userInvites, type User } from '~/server/utils/db/schema'
 import { createSession, setSessionCookie } from '~/server/utils/session'
 import { getOAuthRedirectUri } from '~/server/utils/oauth-redirect'
 import { getRequestURL } from 'h3'
@@ -112,6 +112,24 @@ export default defineEventHandler(async (event) => {
     }
     user = inserted
     console.log('[auth/callback] Created user id=', user.id, 'role=', user.role)
+  }
+
+  // Apply any pending invite for this email
+  const [invite] = await db.select().from(userInvites).where(eq(userInvites.email, email)).limit(1)
+  if (invite) {
+    const projectIds: number[] = JSON.parse(invite.projectIds ?? '[]')
+    for (const projectId of projectIds) {
+      await db
+        .insert(projectMembers)
+        .values({ projectId, userId: user.id, role: 'editor' })
+        .onConflictDoNothing()
+    }
+    if (invite.role === 'admin' && user.role !== 'admin') {
+      await db.update(users).set({ role: 'admin' }).where(eq(users.id, user.id))
+      user = { ...user, role: 'admin' }
+    }
+    await db.delete(userInvites).where(eq(userInvites.id, invite.id))
+    console.log('[auth/callback] Applied invite for', email, 'projects=', projectIds)
   }
 
   if (user.suspended) {

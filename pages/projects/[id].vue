@@ -83,4 +83,9 @@ const { data, pending } = await useFetch<{
 }>(() => `/api/projects/${idParam.value}`, { key: () => `project-${idParam.value}`, server: false })
 
 const project = computed(() => data.value?.project ?? null)
+
+const activeProject = useState<{ id: number; name: string } | null>('active-project', () => null)
+watch(project, (p) => {
+  if (p) activeProject.value = { id: p.id, name: p.name }
+}, { immediate: true })
 </script>

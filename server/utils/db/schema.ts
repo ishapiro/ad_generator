@@ -37,6 +37,18 @@ export const projectMembers = sqliteTable('project_members', {
 
 export type ProjectMember = typeof projectMembers.$inferSelect
 
+// ── User invites ──────────────────────────────────────────────────────────────
+
+export const userInvites = sqliteTable('user_invites', {
+  id:         integer('id').primaryKey({ autoIncrement: true }),
+  email:      text('email').notNull().unique(),
+  role:       text('role', { enum: ['admin', 'member'] }).notNull().default('member'),
+  projectIds: text('project_ids').notNull().default('[]'), // JSON: number[]
+  createdAt:  integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+})
+
+export type UserInvite = typeof userInvites.$inferSelect
+
 // ── Media ─────────────────────────────────────────────────────────────────────
 
 export const mediaFolders = sqliteTable('media_folders', {

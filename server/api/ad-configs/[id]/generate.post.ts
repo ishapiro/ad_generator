@@ -75,7 +75,7 @@ export default defineEventHandler(async (event) => {
   const templatedDesignId = config.templateId ?? ''
   const publicBaseUrl = ((cfg.publicBaseUrl as string) || '').replace(/\/$/, '')
   const tempStorageUrl = ((cfg.tempStorageUrl as string) || 'https://adgen.cogitations.com').replace(/\/$/, '')
-  const adgenPassword = cfg.adgenPassword as string
+  const sessionSecret = cfg.sessionSecret as string
 
   if (!falKey || !templatedApiKey || !templatedDesignId) {
     throw createError({ statusCode: 500, message: 'Missing API credentials or templateId on ad config' })
@@ -164,7 +164,7 @@ export default defineEventHandler(async (event) => {
                 method: 'POST',
                 headers: {
                   'Content-Type': contentType,
-                  'X-Internal-Secret': adgenPassword,
+                  'X-Internal-Secret': sessionSecret,
                   'X-Filename': sel.r2Key,
                 },
                 body: imageBytes,
@@ -284,7 +284,7 @@ export default defineEventHandler(async (event) => {
         remote
           ? fetch(`${tempStorageUrl}/api/temp-images/${key}`, {
               method: 'DELETE',
-              headers: { 'X-Internal-Secret': adgenPassword },
+              headers: { 'X-Internal-Secret': sessionSecret },
             })
               .then(r => { if (!r.ok) console.warn(`[generate] failed to delete remote tmp key ${key}: ${r.status}`) })
               .catch(e => console.warn(`[generate] failed to delete remote tmp key ${key}:`, e))
@@ -305,7 +305,7 @@ export default defineEventHandler(async (event) => {
         remote
           ? fetch(`${tempStorageUrl}/api/temp-images/${key}`, {
               method: 'DELETE',
-              headers: { 'X-Internal-Secret': adgenPassword },
+              headers: { 'X-Internal-Secret': sessionSecret },
             })
               .then(r => { if (!r.ok) console.warn(`[generate] failed to delete remote tmp key ${key}: ${r.status}`) })
               .catch(e => console.warn(`[generate] failed to delete remote tmp key ${key}:`, e))

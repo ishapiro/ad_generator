@@ -239,6 +239,7 @@ const props = defineProps<{
   imageMode: 'generate' | 'upload'
   savedPrompts: SavedPrompt[]
   profileId?: number
+  projectId?: number
 }>()
 
 const emit = defineEmits<{
@@ -367,7 +368,7 @@ async function savePrompt() {
   try {
     const saved = await $fetch<SavedPrompt>('/api/prompts', {
       method: 'POST',
-      body: { name: savePromptName.value.trim(), prompt: localPrompt.value.trim() },
+      body: { name: savePromptName.value.trim(), prompt: localPrompt.value.trim(), projectId: props.projectId },
     })
     emit('prompt-saved', saved)
     savePromptName.value = ''

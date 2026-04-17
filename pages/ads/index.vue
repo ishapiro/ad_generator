@@ -3,7 +3,7 @@
     <div class="mb-4 flex items-center justify-between">
       <h1 class="text-3xl font-bold text-slate-900">Ad Profiles</h1>
       <NuxtLink
-        to="/templates"
+        :to="templatesUrl"
         class="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
       >
         + New Ad Profile
@@ -20,7 +20,7 @@
 
     <div v-else-if="!adConfigs?.length" class="rounded-lg border-2 border-dashed border-slate-200 py-20 text-center">
       <p class="text-slate-500">No ad profiles yet.</p>
-      <NuxtLink to="/templates" class="mt-3 inline-block text-blue-600 hover:underline">
+      <NuxtLink :to="templatesUrl" class="mt-3 inline-block text-blue-600 hover:underline">
         Create your first ad profile →
       </NuxtLink>
     </div>
@@ -81,6 +81,10 @@ interface AdConfig {
   headline: string
   createdAt: Date | null
 }
+
+const route = useRoute()
+const projectId = computed(() => route.query.projectId ? Number(route.query.projectId) : null)
+const templatesUrl = computed(() => projectId.value ? `/templates?projectId=${projectId.value}` : '/templates')
 
 const { data, pending, refresh } = await useFetch<{ adConfigs: AdConfig[] }>('/api/ad-configs', { key: 'ad-configs-index', server: false })
 const adConfigs = computed(() => data.value?.adConfigs ?? [])

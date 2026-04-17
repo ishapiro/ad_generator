@@ -3,7 +3,7 @@ import { mimeToExt, useR2 } from '~/server/utils/r2'
 export default defineEventHandler(async (event) => {
   const cfg = useRuntimeConfig(event)
   const secret = getRequestHeader(event, 'x-internal-secret')
-  if (!secret || secret !== (cfg.adgenPassword as string)) {
+  if (!secret || secret !== (cfg.sessionSecret as string)) {
     throw createError({ statusCode: 401, message: 'Unauthorized' })
   }
 

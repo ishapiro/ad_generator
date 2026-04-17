@@ -2,7 +2,10 @@
   <div class="mx-auto max-w-wide px-4 py-10">
     <!-- Header -->
     <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
-      <h1 class="text-3xl font-bold text-slate-900">Media Library</h1>
+      <div>
+        <NuxtLink v-if="projectId" :to="`/ads?projectId=${projectId}`" class="text-sm text-slate-500 hover:text-slate-700">← Ad Profiles</NuxtLink>
+        <h1 class="text-3xl font-bold text-slate-900" :class="projectId ? 'mt-1' : ''">Media Library</h1>
+      </div>
       <div class="flex items-center gap-3">
         <button
           v-if="activeFolder !== 'generated'"
@@ -565,6 +568,9 @@
 
 <script setup lang="ts">
 definePageMeta({ middleware: ['auth'], key: 'media-index' })
+
+const route = useRoute()
+const projectId = computed(() => route.query.projectId ? Number(route.query.projectId) : null)
 
 interface MediaItem {
   id: number

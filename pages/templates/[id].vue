@@ -1,7 +1,7 @@
 <template>
   <div class="mx-auto max-w-wide px-4 py-10">
     <div class="mb-6">
-      <NuxtLink to="/templates" class="text-sm text-slate-500 hover:text-slate-700">← Back to Templates</NuxtLink>
+      <NuxtLink :to="projectId ? `/templates?projectId=${projectId}` : '/templates'" class="text-sm text-slate-500 hover:text-slate-700">← Back to Templates</NuxtLink>
     </div>
 
     <div v-if="pending" class="text-slate-500">Loading template…</div>
@@ -11,7 +11,7 @@
     </div>
 
     <template v-else-if="template">
-      <NuxtLink to="/ads" class="mb-4 inline-block text-sm text-slate-500 hover:text-slate-700">← Back to Ad Profiles</NuxtLink>
+      <NuxtLink :to="projectId ? `/ads?projectId=${projectId}` : '/ads'" class="mb-4 inline-block text-sm text-slate-500 hover:text-slate-700">← Back to Ad Profiles</NuxtLink>
       <h1 class="mb-1 text-2xl font-bold text-slate-900">Create Ad Profile — {{ template.name }}</h1>
       <p class="mb-2 text-sm text-slate-500">
         Fill in the fields below to configure this template's content. Text layers accept your ad copy directly.
@@ -113,6 +113,7 @@
                     :r2-key="layerR2Keys[layer.layer]"
                     :image-mode="layerModes[layer.layer]"
                     :saved-prompts="promptLibrary"
+                    :project-id="projectId ?? undefined"
                     @update:prompt="layerValues[layer.layer] = $event"
                     @update:r2-key="layerR2Keys[layer.layer] = $event"
                     @update:image-mode="layerModes[layer.layer] = $event"
@@ -158,6 +159,7 @@
     :show="showGenerateCopyModal"
     :template-name="template?.name ?? ''"
     :fields="textLayers.map(l => ({ name: l.layer, value: layerValues[l.layer] ?? '', type: l.type }))"
+    :project-id="projectId ?? undefined"
     @update:show="val => { showGenerateCopyModal = val }"
     @generated="onCopyGenerated"
   />
@@ -204,6 +206,7 @@ interface SavedPrompt {
 
 const route = useRoute()
 const id = route.params.id as string
+const projectId = route.query.projectId ? Number(route.query.projectId) : null
 
 const [{ data, pending, error }, promptsData] = await Promise.all([
   useFetch<TemplatedTemplate>(`/api/templated/templates/${id}`, { server: false }),
@@ -295,7 +298,7 @@ async function createVariation() {
 
     await $fetch('/api/ad-configs', {
       method: 'POST',
-      body: { name: variationName.value.trim(), templateId: id, templateLayers },
+      body: { name: variationName.value.trim(), templateId: id, templateLayers, projectId: projectId ?? undefined },
     })
 
     clearNuxtData('ad-configs-index')

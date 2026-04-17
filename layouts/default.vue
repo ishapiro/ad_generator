@@ -125,6 +125,23 @@
       </div>
     </header>
 
+    <!-- Project context bar -->
+    <div v-if="activeProject && isProjectRoute" class="border-b border-blue-100 bg-blue-50">
+      <div class="mx-auto max-w-wide px-4">
+        <div class="flex h-9 items-center gap-3 text-sm">
+          <NuxtLink to="/" class="text-slate-500 hover:text-slate-700">← Projects</NuxtLink>
+          <span class="text-slate-300">/</span>
+          <NuxtLink :to="`/projects/${activeProject.id}`" class="font-semibold text-slate-800 hover:text-blue-700">
+            {{ activeProject.name }}
+          </NuxtLink>
+          <span class="ml-auto flex items-center gap-4">
+            <NuxtLink :to="`/ads?projectId=${activeProject.id}`" class="text-slate-500 hover:text-slate-800">Ad Profiles</NuxtLink>
+            <NuxtLink :to="`/media?projectId=${activeProject.id}`" class="text-slate-500 hover:text-slate-800">Media</NuxtLink>
+          </span>
+        </div>
+      </div>
+    </div>
+
     <main class="flex-1">
       <slot />
     </main>
@@ -148,4 +165,10 @@ const mobileMenuOpen = ref(false)
 watch(() => route.path, () => { mobileMenuOpen.value = false })
 
 const user = useState<{ id: number; email: string; name: string | null; role: string } | null>('auth-user')
+const activeProject = useState<{ id: number; name: string } | null>('active-project', () => null)
+
+const isProjectRoute = computed(() => {
+  const p = route.path
+  return p.startsWith('/ads') || p.startsWith('/media') || p.startsWith('/templates')
+})
 </script>

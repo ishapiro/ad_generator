@@ -160,6 +160,7 @@
                     :image-mode="layerModes[layer.layer]"
                     :saved-prompts="promptLibrary"
                     :profile-id="id"
+                    :project-id="config?.projectId ?? undefined"
                     @update:prompt="layerValues[layer.layer] = $event"
                     @update:r2-key="layerR2Keys[layer.layer] = $event"
                     @update:image-mode="layerModes[layer.layer] = $event"
@@ -205,6 +206,7 @@ interface LayerSelection {
 
 interface AdConfig {
   id: number
+  projectId: number | null
   name: string
   templateId: string | null
   templateLayers: string | null

@@ -3,14 +3,14 @@
     <div v-if="pending" class="text-slate-500">Loading…</div>
     <div v-else-if="!config">
       <p class="text-red-500">Ad config not found.</p>
-      <NuxtLink to="/ads" class="text-blue-600 hover:underline">← Back to list</NuxtLink>
+      <NuxtLink :to="adsListUrl" class="text-blue-600 hover:underline">← Back to list</NuxtLink>
     </div>
 
     <template v-else>
       <!-- ── Header ── -->
       <div class="mb-6">
         <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <NuxtLink to="/ads" class="text-sm text-slate-500 hover:text-slate-700">← All Ad Profiles</NuxtLink>
+          <NuxtLink :to="adsListUrl" class="text-sm text-slate-500 hover:text-slate-700">← All Ad Profiles</NuxtLink>
           <div class="flex flex-wrap gap-3">
             <button
               v-if="isTemplateBased && !templateChanged && textTemplateLayers.length > 0"
@@ -174,6 +174,7 @@
                       :image-mode="(layer.imageMode as 'generate' | 'upload') ?? 'generate'"
                       :saved-prompts="promptLibrary"
                       :profile-id="id"
+                      :project-id="config?.projectId ?? undefined"
                       @update:prompt="layer.prompt = $event"
                       @update:r2-key="layer.r2Key = $event"
                       @update:image-mode="layer.imageMode = $event"
@@ -252,6 +253,7 @@
     :show="showGenerateCopyModal"
     :template-name="config?.name ?? ''"
     :fields="textTemplateLayers.map(l => ({ name: l.layer, value: l.value ?? '', type: l.type }))"
+    :project-id="config?.projectId ?? undefined"
     @update:show="val => { showGenerateCopyModal = val }"
     @generated="onCopyGenerated"
   />
@@ -504,6 +506,7 @@ interface BulletStep {
 
 interface AdConfig {
   id: number
+  projectId: number | null
   name: string
   templateId: string | null
   templateLayers: string | null
@@ -555,6 +558,7 @@ const [{ data, pending, refresh }, promptsRes] = await Promise.all([
 const promptLibrary = ref<SavedPrompt[]>(promptsRes.data.value ?? [])
 
 const config = computed(() => data.value?.config ?? null)
+const adsListUrl = computed(() => config.value?.projectId ? `/ads?projectId=${config.value.projectId}` : '/ads')
 const generatedAds = computed(() => data.value?.generatedAds ?? [])
 
 const latestCompleteAd = computed(() =>

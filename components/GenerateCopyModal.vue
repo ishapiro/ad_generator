@@ -184,6 +184,7 @@ const props = defineProps<{
   show: boolean
   templateName: string
   fields: Array<{ name: string; value: string; type?: string }>
+  projectId?: number
 }>()
 
 const emit = defineEmits<{
@@ -245,7 +246,7 @@ async function saveBrief() {
   try {
     const saved = await $fetch<SavedBrief>('/api/briefs', {
       method: 'POST',
-      body: { name: saveBriefName.value.trim(), brief: brief.value.trim() },
+      body: { name: saveBriefName.value.trim(), brief: brief.value.trim(), projectId: props.projectId },
     })
     savedBriefs.value.unshift(saved)
     saveBriefName.value = ''

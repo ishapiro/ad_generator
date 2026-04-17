@@ -2,7 +2,7 @@
   <div class="mx-auto max-w-wide px-4 py-10">
     <div class="mb-8 flex items-center justify-between">
       <div>
-        <NuxtLink to="/ads" class="text-sm text-slate-500 hover:text-slate-700">← Back to Ad Profiles</NuxtLink>
+        <NuxtLink :to="projectId ? `/ads?projectId=${projectId}` : '/ads'" class="text-sm text-slate-500 hover:text-slate-700">← Back to Ad Profiles</NuxtLink>
         <h1 class="mt-1 text-3xl font-bold text-slate-900">Choose a Template</h1>
         <p class="mt-1 text-sm text-slate-500">
           Templates define the visual layout of your ad — where headlines, images, and other elements are positioned.
@@ -25,7 +25,7 @@
       <NuxtLink
         v-for="tpl in templates"
         :key="tpl.id"
-        :to="`/templates/${tpl.id}`"
+        :to="templateUrl(tpl.id)"
         class="group block transition hover:opacity-90"
       >
         <div style="overflow: hidden; border-radius: 0.75rem; border: 1px solid #e2e8f0;">
@@ -59,6 +59,13 @@ interface TemplatedTemplate {
   height?: number
   layersCount?: number
   folderId?: string
+}
+
+const route = useRoute()
+const projectId = computed(() => route.query.projectId ? Number(route.query.projectId) : null)
+
+function templateUrl(id: string) {
+  return projectId.value ? `/templates/${id}?projectId=${projectId.value}` : `/templates/${id}`
 }
 
 const { data, pending, error } = await useFetch<TemplatedTemplate[]>('/api/templated/templates', { server: false })
