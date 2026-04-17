@@ -30,13 +30,22 @@
             <h2 class="font-semibold text-slate-900">{{ p.name }}</h2>
             <p v-if="p.description" class="mt-0.5 text-sm text-slate-500">{{ p.description }}</p>
           </div>
-          <button
-            type="button"
-            class="shrink-0 rounded-lg border border-red-300 px-3 py-1 text-xs font-medium text-red-700 transition-colors hover:bg-red-50"
-            @click="deleteProject(p.id, p.name)"
-          >
-            Delete
-          </button>
+          <div class="flex shrink-0 gap-2">
+            <button
+              type="button"
+              class="rounded-lg border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50"
+              @click="openEdit(p)"
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              class="rounded-lg border border-red-300 px-3 py-1 text-xs font-medium text-red-700 transition-colors hover:bg-red-50"
+              @click="deleteProject(p.id, p.name)"
+            >
+              Delete
+            </button>
+          </div>
         </div>
 
         <!-- Members sub-section -->
@@ -91,10 +100,48 @@
             <input v-model="newDescription" type="text" placeholder="Short description"
               class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
           </div>
+          <div>
+            <label class="mb-1 block text-sm font-medium text-slate-700">Templated API Key <span class="text-slate-400">(optional)</span></label>
+            <input v-model="newTemplatedApiKey" type="text" placeholder="Templated.io API key"
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+          </div>
           <p v-if="createError" class="text-sm text-red-600">{{ createError }}</p>
           <div class="flex justify-end gap-3">
             <button type="button" class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" @click="showNewProject = false">Cancel</button>
             <button type="submit" :disabled="creating || !newName.trim()" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:pointer-events-none disabled:opacity-50">{{ creating ? 'Creating…' : 'Create' }}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Edit project modal -->
+    <div
+      v-if="editProjectId !== null"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      @click.self="editProjectId = null"
+    >
+      <div class="w-full max-w-md rounded-xl bg-white p-6 shadow-lg">
+        <h2 class="text-lg font-semibold text-slate-900">Edit Project</h2>
+        <form class="mt-4 space-y-4" @submit.prevent="saveEdit">
+          <div>
+            <label class="mb-1 block text-sm font-medium text-slate-700">Name</label>
+            <input v-model="editName" type="text" required placeholder="Project name"
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label class="mb-1 block text-sm font-medium text-slate-700">Description <span class="text-slate-400">(optional)</span></label>
+            <input v-model="editDescription" type="text" placeholder="Short description"
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label class="mb-1 block text-sm font-medium text-slate-700">Templated API Key <span class="text-slate-400">(optional)</span></label>
+            <input v-model="editTemplatedApiKey" type="text" placeholder="Templated.io API key"
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+          </div>
+          <p v-if="editError" class="text-sm text-red-600">{{ editError }}</p>
+          <div class="flex justify-end gap-3">
+            <button type="button" class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" @click="editProjectId = null">Cancel</button>
+            <button type="submit" :disabled="saving || !editName.trim()" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:pointer-events-none disabled:opacity-50">{{ saving ? 'Saving…' : 'Save' }}</button>
           </div>
         </form>
       </div>
@@ -141,6 +188,7 @@ interface ProjectRow {
   id: number
   name: string
   description: string | null
+  templatedApiKey: string | null
 }
 
 interface MemberRow {
@@ -182,6 +230,7 @@ watch(projects, async (newProjects) => {
 const showNewProject = ref(false)
 const newName = ref('')
 const newDescription = ref('')
+const newTemplatedApiKey = ref('')
 const creating = ref(false)
 const createError = ref<string | null>(null)
 
@@ -191,11 +240,12 @@ async function createProject() {
   try {
     await $fetch('/api/admin/projects', {
       method: 'POST',
-      body: { name: newName.value.trim(), description: newDescription.value.trim() || null },
+      body: { name: newName.value.trim(), description: newDescription.value.trim() || null, templatedApiKey: newTemplatedApiKey.value.trim() || null },
     })
     showNewProject.value = false
     newName.value = ''
     newDescription.value = ''
+    newTemplatedApiKey.value = ''
     await refreshProjects()
   } catch (e: unknown) {
     createError.value =
@@ -211,6 +261,43 @@ async function deleteProject(id: number, name: string) {
   if (!confirm(`Delete project "${name}"? This cannot be undone.`)) return
   await $fetch(`/api/admin/projects/${id}`, { method: 'DELETE' })
   await refreshProjects()
+}
+
+// Edit project
+const editProjectId = ref<number | null>(null)
+const editName = ref('')
+const editDescription = ref('')
+const editTemplatedApiKey = ref('')
+const saving = ref(false)
+const editError = ref<string | null>(null)
+
+function openEdit(p: ProjectRow) {
+  editProjectId.value = p.id
+  editName.value = p.name
+  editDescription.value = p.description ?? ''
+  editTemplatedApiKey.value = p.templatedApiKey ?? ''
+  editError.value = null
+}
+
+async function saveEdit() {
+  if (!editProjectId.value) return
+  editError.value = null
+  saving.value = true
+  try {
+    await $fetch(`/api/admin/projects/${editProjectId.value}`, {
+      method: 'PUT',
+      body: { name: editName.value.trim(), description: editDescription.value.trim() || null, templatedApiKey: editTemplatedApiKey.value.trim() || null },
+    })
+    editProjectId.value = null
+    await refreshProjects()
+  } catch (e: unknown) {
+    editError.value =
+      e && typeof e === 'object' && 'data' in e
+        ? (e as { data: { message?: string } }).data?.message ?? 'Failed to save project'
+        : 'Failed to save project'
+  } finally {
+    saving.value = false
+  }
 }
 
 // Add member

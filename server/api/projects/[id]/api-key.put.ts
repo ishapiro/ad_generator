@@ -8,13 +8,17 @@ export default defineEventHandler(async (event) => {
 
   await requireProjectAccess(event, id)
 
+  const body = await readBody<{ templatedApiKey?: string }>(event)
+  const key = body?.templatedApiKey?.trim() ?? null
+
   const db = useDb(event)
   const [project] = await db
-    .select({ id: projects.id, name: projects.name, description: projects.description, templatedApiKey: projects.templatedApiKey })
-    .from(projects)
+    .update(projects)
+    .set({ templatedApiKey: key || null, updatedAt: new Date() })
     .where(eq(projects.id, id))
-    .limit(1)
+    .returning()
 
   if (!project) throw createError({ statusCode: 404, message: 'Project not found' })
+
   return { project }
 })

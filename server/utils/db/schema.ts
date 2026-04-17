@@ -18,11 +18,12 @@ export type User = typeof users.$inferSelect
 // ── Projects ──────────────────────────────────────────────────────────────────
 
 export const projects = sqliteTable('projects', {
-  id:          integer('id').primaryKey({ autoIncrement: true }),
-  name:        text('name').notNull(),
-  description: text('description'),
-  createdAt:   integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
-  updatedAt:   integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+  id:               integer('id').primaryKey({ autoIncrement: true }),
+  name:             text('name').notNull(),
+  description:      text('description'),
+  templatedApiKey:  text('templated_api_key'),
+  createdAt:        integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+  updatedAt:        integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 })
 
 export type Project = typeof projects.$inferSelect

@@ -65,6 +65,29 @@
           </ul>
         </section>
 
+        <!-- Templated.io API Key -->
+        <section>
+          <h2 class="text-xl font-semibold text-slate-900">Templated.io API Key</h2>
+          <p class="mt-3">
+            Each project requires a <strong>Templated.io API key</strong> to connect to your Templated.io account.
+            This key allows the Ad Manager to read your published templates and submit rendering requests on your behalf.
+          </p>
+          <p class="mt-3">
+            To find your API key, log in to
+            <a href="https://app.templated.io" target="_blank" rel="noopener noreferrer" class="text-blue-600 underline decoration-blue-300 underline-offset-2 hover:decoration-blue-600">app.templated.io</a>,
+            open your account settings, and copy the API key from the API section.
+          </p>
+          <p class="mt-3">
+            When you open a project for the first time you will be prompted to enter the key. You can also update it
+            later from the Project Hub settings.
+          </p>
+          <p class="mt-3">
+            <strong>Your API key is never sent to your browser.</strong> It is stored encrypted on our servers and
+            used only in server-side requests to Templated.io — it is never included in any page, script, or
+            API response visible to the front end.
+          </p>
+        </section>
+
         <!-- Templated.io -->
         <section>
           <h2 class="text-xl font-semibold text-slate-900">Step 1 — Create a template in Templated.io</h2>

@@ -18,6 +18,10 @@
         {{ errorMessage }}
       </p>
 
+      <div class="mt-4 text-center">
+        <NuxtLink to="/help" class="text-sm text-blue-600 hover:underline">Learn about Adgen</NuxtLink>
+      </div>
+
       <div class="mt-6">
         <a
           href="/api/auth/google"
