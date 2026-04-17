@@ -40,7 +40,7 @@
           <div class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">3</div>
           <div>
             <p class="font-semibold text-slate-900">Generate ads from the Ad Profile</p>
-            <p class="mt-1 text-sm text-slate-600">Open the Ad Profile, refine your copy with AI assistance if needed, then click Generate. The system sends your content to Templated.io and returns a finished ad image.</p>
+            <p class="mt-1 text-sm text-slate-600">Open the Ad Profile, supply prompts for your AI image generation, refine your copy with AI assistance if needed, then click Generate. The system sends your content and image prompts to Templated.io and fal.ai, and returns a finished ad image.</p>
           </div>
         </li>
       </ol>
