@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm'
-import { projectMembers, users } from '~/server/utils/db/schema'
+import { projectMembers, users, userInvites } from '~/server/utils/db/schema'
 import { requireAdmin } from '~/server/utils/auth'
 
 export default defineEventHandler(async (event) => {
@@ -8,7 +8,8 @@ export default defineEventHandler(async (event) => {
   if (!Number.isFinite(projectId)) throw createError({ statusCode: 400, message: 'Invalid project id' })
 
   const db = useDb(event)
-  const members = await db
+
+  const active = await db
     .select({
       id: projectMembers.id,
       userId: projectMembers.userId,
@@ -20,5 +21,10 @@ export default defineEventHandler(async (event) => {
     .innerJoin(users, eq(projectMembers.userId, users.id))
     .where(eq(projectMembers.projectId, projectId))
 
-  return { members }
+  const allInvites = await db.select().from(userInvites)
+  const invited = allInvites
+    .filter(inv => (JSON.parse(inv.projectIds) as number[]).includes(projectId))
+    .map(inv => ({ inviteId: inv.id, email: inv.email }))
+
+  return { members: active, invited }
 })

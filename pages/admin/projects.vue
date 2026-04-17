@@ -60,7 +60,7 @@
               + Add member
             </button>
           </div>
-          <div v-if="membersMap[p.id]?.length === 0" class="mt-2 text-xs text-slate-400">No members yet.</div>
+          <div v-if="membersMap[p.id]?.length === 0 && invitedMap[p.id]?.length === 0" class="mt-2 text-xs text-slate-400">No members yet.</div>
           <ul v-else class="mt-2 space-y-1">
             <li
               v-for="m in membersMap[p.id]"
@@ -74,6 +74,20 @@
                 @click="removeMember(p.id, m.userId)"
               >
                 Remove
+              </button>
+            </li>
+            <li
+              v-for="inv in invitedMap[p.id]"
+              :key="'inv-' + inv.inviteId"
+              class="flex items-center justify-between text-sm"
+            >
+              <span class="text-slate-500">{{ inv.email }} <span class="text-xs text-amber-600 font-medium">(pending invite)</span></span>
+              <button
+                type="button"
+                class="text-xs text-red-600 hover:underline"
+                @click="removeInvite(p.id, inv.inviteId)"
+              >
+                Cancel
               </button>
             </li>
           </ul>
@@ -187,7 +201,25 @@
     >
       <div class="w-full max-w-md rounded-xl bg-white p-6 shadow-lg">
         <h2 class="text-lg font-semibold text-slate-900">Add Member</h2>
-        <form class="mt-4 space-y-4" @submit.prevent="addMember">
+
+        <!-- Mode toggle -->
+        <div class="mt-4 flex rounded-lg border border-slate-200 p-1">
+          <button
+            type="button"
+            class="flex-1 rounded-md py-1.5 text-sm font-medium transition-colors"
+            :class="addMemberMode === 'user' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:text-slate-900'"
+            @click="addMemberMode = 'user'; addMemberInviteSuccess = false; addMemberError = null"
+          >Existing user</button>
+          <button
+            type="button"
+            class="flex-1 rounded-md py-1.5 text-sm font-medium transition-colors"
+            :class="addMemberMode === 'email' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:text-slate-900'"
+            @click="addMemberMode = 'email'; addMemberInviteSuccess = false; addMemberError = null"
+          >Invite by email</button>
+        </div>
+
+        <!-- Existing user form -->
+        <form v-if="addMemberMode === 'user'" class="mt-4 space-y-4" @submit.prevent="addMember">
           <div>
             <label class="mb-1 block text-sm font-medium text-slate-700">User</label>
             <select v-model="addMemberUserId" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
@@ -206,6 +238,27 @@
           <div class="flex justify-end gap-3">
             <button type="button" class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" @click="addMemberProjectId = null">Cancel</button>
             <button type="submit" :disabled="addingMember || !addMemberUserId" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:pointer-events-none disabled:opacity-50">{{ addingMember ? 'Adding…' : 'Add' }}</button>
+          </div>
+        </form>
+
+        <!-- Invite by email form -->
+        <form v-else class="mt-4 space-y-4" @submit.prevent="inviteMemberByEmail">
+          <div>
+            <label class="mb-1 block text-sm font-medium text-slate-700">Email address</label>
+            <input
+              v-model="addMemberEmail"
+              type="email"
+              required
+              placeholder="user@example.com"
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+            <p class="mt-1 text-xs text-slate-500">The user will be assigned as editor when they first log in.</p>
+          </div>
+          <p v-if="addMemberInviteSuccess" class="text-sm text-emerald-600">Invite saved — this user will get access when they first log in.</p>
+          <p v-if="addMemberError" class="text-sm text-red-600">{{ addMemberError }}</p>
+          <div class="flex justify-end gap-3">
+            <button type="button" class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" @click="addMemberProjectId = null">Cancel</button>
+            <button type="submit" :disabled="addingMember || !addMemberEmail.trim()" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:pointer-events-none disabled:opacity-50">{{ addingMember ? 'Saving…' : 'Save invite' }}</button>
           </div>
         </form>
       </div>
@@ -231,6 +284,11 @@ interface MemberRow {
   name: string | null
 }
 
+interface InvitedRow {
+  inviteId: number
+  email: string
+}
+
 interface UserRow {
   id: number
   email: string
@@ -246,10 +304,12 @@ const { data: usersData } = await useFetch<{ users: UserRow[] }>('/api/admin/use
 const allUsers = computed(() => usersData.value?.users ?? [])
 
 const membersMap = ref<Record<number, MemberRow[]>>({})
+const invitedMap = ref<Record<number, InvitedRow[]>>({})
 
 async function loadMembers(projectId: number) {
-  const res = await $fetch<{ members: MemberRow[] }>(`/api/admin/projects/${projectId}/members`)
+  const res = await $fetch<{ members: MemberRow[]; invited: InvitedRow[] }>(`/api/admin/projects/${projectId}/members`)
   membersMap.value[projectId] = res.members
+  invitedMap.value[projectId] = res.invited
 }
 
 watch(projects, async (newProjects) => {
@@ -374,16 +434,22 @@ async function saveEdit() {
 
 // Add member
 const addMemberProjectId = ref<number | null>(null)
+const addMemberMode = ref<'user' | 'email'>('user')
 const addMemberUserId = ref<number | ''>('')
 const addMemberRole = ref('editor')
+const addMemberEmail = ref('')
 const addingMember = ref(false)
 const addMemberError = ref<string | null>(null)
+const addMemberInviteSuccess = ref(false)
 
 function openAddMember(projectId: number) {
   addMemberProjectId.value = projectId
+  addMemberMode.value = 'user'
   addMemberUserId.value = ''
   addMemberRole.value = 'editor'
+  addMemberEmail.value = ''
   addMemberError.value = null
+  addMemberInviteSuccess.value = false
 }
 
 async function addMember() {
@@ -407,8 +473,35 @@ async function addMember() {
   }
 }
 
+async function inviteMemberByEmail() {
+  if (!addMemberProjectId.value || !addMemberEmail.value.trim()) return
+  addMemberError.value = null
+  addMemberInviteSuccess.value = false
+  addingMember.value = true
+  try {
+    await $fetch(`/api/admin/projects/${addMemberProjectId.value}/members/invite`, {
+      method: 'POST',
+      body: { email: addMemberEmail.value.trim() },
+    })
+    addMemberEmail.value = ''
+    addMemberInviteSuccess.value = true
+  } catch (e: unknown) {
+    addMemberError.value =
+      e && typeof e === 'object' && 'data' in e
+        ? (e as { data: { message?: string } }).data?.message ?? 'Failed to save invite'
+        : 'Failed to save invite'
+  } finally {
+    addingMember.value = false
+  }
+}
+
 async function removeMember(projectId: number, userId: number) {
   await $fetch(`/api/admin/projects/${projectId}/members/${userId}`, { method: 'DELETE' })
+  await loadMembers(projectId)
+}
+
+async function removeInvite(projectId: number, inviteId: number) {
+  await $fetch(`/api/admin/projects/${projectId}/members/invite/${inviteId}`, { method: 'DELETE' })
   await loadMembers(projectId)
 }
 </script>
