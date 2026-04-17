@@ -42,6 +42,13 @@
               Admin
             </NuxtLink>
             <NuxtLink
+              to="/help"
+              class="text-sm font-medium text-slate-600 hover:text-slate-900"
+              active-class="text-blue-600 font-semibold"
+            >
+              Help
+            </NuxtLink>
+            <NuxtLink
               to="/about"
               class="text-sm font-medium text-slate-600 hover:text-slate-900"
             >
@@ -103,6 +110,14 @@
             @click="mobileMenuOpen = false"
           >
             Admin
+          </NuxtLink>
+          <NuxtLink
+            to="/help"
+            class="block rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            active-class="bg-blue-50 text-blue-700"
+            @click="mobileMenuOpen = false"
+          >
+            Help
           </NuxtLink>
           <NuxtLink
             to="/about"
