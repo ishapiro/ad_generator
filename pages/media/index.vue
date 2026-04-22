@@ -203,6 +203,18 @@
                     </svg>
                   </button>
 
+                  <!-- Revise -->
+                  <button
+                    type="button"
+                    title="Revise with AI"
+                    class="rounded p-1 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600"
+                    @click="openRevise(ad.r2Key)"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd" />
+                    </svg>
+                  </button>
+
                   <!-- Delete -->
                   <button
                     type="button"
@@ -326,6 +338,16 @@
                     </svg>
                     <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                       <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    title="Revise with AI"
+                    class="rounded p-1 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600"
+                    @click="openRevise(item.r2Key)"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd" />
                     </svg>
                   </button>
                   <button
@@ -510,6 +532,14 @@
       </div>
     </div>
   </div>
+
+  <!-- ── Image Revise Modal ── -->
+  <ImageReviseModal
+    v-model="showReviseModal"
+    :r2-key="reviseR2Key ?? ''"
+    :project-id="projectId ?? undefined"
+    @revised="onRevised"
+  />
 
   <!-- ── Folder management modal ── -->
   <div
@@ -719,6 +749,20 @@ async function saveToLibrary(ad: GeneratedAdItem) {
   } finally {
     savingToLibraryId.value = null
   }
+}
+
+// ── Image revision ──
+const reviseR2Key = ref<string | null>(null)
+const showReviseModal = ref(false)
+
+function openRevise(r2Key: string | null) {
+  if (!r2Key) return
+  reviseR2Key.value = r2Key
+  showReviseModal.value = true
+}
+
+async function onRevised() {
+  await Promise.all([refresh(), refreshFolders()])
 }
 
 // ── Copy link ──
