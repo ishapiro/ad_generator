@@ -15,6 +15,14 @@
         >
           Manage Folders
         </button>
+        <button
+          v-if="activeFolder !== 'generated'"
+          type="button"
+          class="rounded-lg border border-violet-300 bg-violet-50 px-4 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-100"
+          @click="showGenerateModal = true"
+        >
+          ✦ Generate Image
+        </button>
         <label
           v-if="activeFolder !== 'generated'"
           class="cursor-pointer rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
@@ -128,7 +136,7 @@
             <p class="text-slate-400">No generated ads yet.</p>
             <NuxtLink to="/ads" class="mt-2 inline-block text-sm text-blue-600 hover:underline">Go generate one →</NuxtLink>
           </div>
-          <div v-else class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
+          <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
             <div
               v-for="ad in generatedAds"
               :key="ad.id"
@@ -243,7 +251,7 @@
           </div>
 
           <!-- Grid -->
-          <div v-else class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
+          <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
             <div
               v-for="item in filteredItems"
               :key="item.id"
@@ -533,6 +541,13 @@
     </div>
   </div>
 
+  <!-- ── Image Generate Modal ── -->
+  <ImageGenerateModal
+    v-model="showGenerateModal"
+    :project-id="projectId ?? undefined"
+    @saved="onGenerated"
+  />
+
   <!-- ── Image Revise Modal ── -->
   <ImageReviseModal
     v-model="showReviseModal"
@@ -749,6 +764,13 @@ async function saveToLibrary(ad: GeneratedAdItem) {
   } finally {
     savingToLibraryId.value = null
   }
+}
+
+// ── Image generation ──
+const showGenerateModal = ref(false)
+
+async function onGenerated() {
+  await Promise.all([refresh(), refreshFolders()])
 }
 
 // ── Image revision ──
