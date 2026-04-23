@@ -313,11 +313,6 @@
         </button>
       </div>
 
-      <!-- Revise success banner -->
-      <p v-if="reviseSuccessMsg" class="shrink-0 bg-emerald-50 px-6 py-2 text-sm text-emerald-700">
-        {{ reviseSuccessMsg }}
-      </p>
-
       <!-- Scrollable grid -->
       <div class="overflow-y-auto p-6">
         <div v-if="!generatedAds.length" class="py-10 text-center text-slate-400">
@@ -363,13 +358,6 @@
                     @click="openReview(ad.r2Key!)"
                   >
                     AI Review
-                  </button>
-                  <button
-                    type="button"
-                    class="text-sm text-emerald-600 hover:underline"
-                    @click="openRevise(ad.r2Key!)"
-                  >
-                    Revise
                   </button>
                 </template>
                 <button
@@ -490,13 +478,6 @@
     </div>
   </div>
 
-  <!-- ── Image Revise Modal ── -->
-  <ImageReviseModal
-    v-model="showReviseModal"
-    :r2-key="reviseR2Key ?? ''"
-    :project-id="config?.projectId ?? undefined"
-    @revised="onRevised"
-  />
 </template>
 
 <script setup lang="ts">
@@ -761,20 +742,6 @@ function closeReview() {
   reviewingAdKey.value = null
 }
 
-const reviseR2Key = ref<string | null>(null)
-const showReviseModal = ref(false)
-const reviseSuccessMsg = ref<string | null>(null)
-
-function openRevise(r2Key: string) {
-  reviseR2Key.value = r2Key
-  reviseSuccessMsg.value = null
-  showReviseModal.value = true
-}
-
-function onRevised() {
-  reviseSuccessMsg.value = 'Revised image saved to media library.'
-  setTimeout(() => { reviseSuccessMsg.value = null }, 5000)
-}
 
 function popOutReview() {
   if (!reviewResult.value || !reviewingAdKey.value) return

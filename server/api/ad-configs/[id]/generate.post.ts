@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
 import { adConfigs, generatedAds } from '~/server/utils/db/schema'
 import { requireProjectAccess, requireSession } from '~/server/utils/auth'
 import { mimeToExt, useR2 } from '~/server/utils/r2'
@@ -117,22 +117,100 @@ export default defineEventHandler(async (event) => {
       .filter(l => l.included !== false)
 
     let templatedLayers: Record<string, { text?: string; image_url?: string }>
+    let newCache: Record<string, { prompt: string; r2Key: string }> = {}
 
     if (layerSelections.length > 0) {
       // ── Dynamic path: layer selections from template configurator ──
 
-      // Separate image layers into AI-generate vs pre-uploaded
-      const generateJobs = layerSelections
-        .filter(sel => sel.type === 'image' && sel.imageMode !== 'upload' && sel.prompt)
-        .map(sel => ({
-          layer: sel.layer,
-          promise: falSubscribe(falKey, 'fal-ai/flux-2-pro', {
+      // Helper: stage an R2 image at a public URL for Templated.io to fetch, then clean up after render
+      async function stageForTemplated(imgR2Key: string, contentType: string): Promise<string> {
+        if (publicBaseUrl) {
+          const tmpKey = `tmp-${crypto.randomUUID()}.${mimeToExt(contentType)}`
+          const obj = await r2.get(imgR2Key)
+          if (!obj) throw new Error(`R2 object not found for staging: ${imgR2Key}`)
+          await r2.put(tmpKey, await obj.arrayBuffer(), { httpMetadata: { contentType } })
+          tmpKeys.push({ key: tmpKey, remote: false })
+          const url = `${publicBaseUrl}/api/images/${tmpKey}`
+          console.log(`[generate] staged ${imgR2Key} as ${tmpKey}, url=${url}`)
+          return url
+        } else {
+          const obj = await r2.get(imgR2Key)
+          if (!obj) throw new Error(`R2 object not found for staging: ${imgR2Key}`)
+          const uploadRes = await fetch(`${tempStorageUrl}/api/temp-images`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': contentType,
+              'X-Internal-Secret': sessionSecret,
+              'X-Filename': imgR2Key,
+            },
+            body: await obj.arrayBuffer(),
+          })
+          if (!uploadRes.ok) {
+            const errText = await uploadRes.text()
+            throw new Error(`Temp upload to ${tempStorageUrl} failed: ${uploadRes.status} — ${errText}`)
+          }
+          const { key, url } = await uploadRes.json() as { key: string; url: string }
+          tmpKeys.push({ key, remote: true })
+          console.log(`[generate] local dev: staged ${imgR2Key} as ${key} on ${tempStorageUrl}, url=${url}`)
+          return url
+        }
+      }
+
+      // Load the most recent successful ad's layer image cache for prompt comparison
+      type LayerCache = Record<string, { prompt: string; r2Key: string }>
+      const [prevAd] = await db
+        .select({ layerImageCache: generatedAds.layerImageCache })
+        .from(generatedAds)
+        .where(and(eq(generatedAds.adConfigId, configId), eq(generatedAds.status, 'complete')))
+        .orderBy(desc(generatedAds.createdAt))
+        .limit(1)
+      const prevCache: LayerCache = JSON.parse(prevAd?.layerImageCache ?? '{}') ?? {}
+      newCache = {}
+
+      // Determine which generate-mode layers need a new Fal.ai call vs. can reuse their cached R2 image
+      const generateLayers = layerSelections.filter(
+        sel => sel.type === 'image' && sel.imageMode !== 'upload' && sel.prompt,
+      )
+
+      const cacheChecks = await Promise.all(
+        generateLayers.map(async (sel) => {
+          const entry = prevCache[sel.layer]
+          if (entry?.prompt === sel.prompt && entry.r2Key) {
+            const obj = await r2.get(entry.r2Key)
+            if (obj) {
+              console.log(`[generate] cache HIT layer '${sel.layer}': reusing ${entry.r2Key}`)
+              return { sel, hit: true as const, r2Key: entry.r2Key }
+            }
+          }
+          console.log(`[generate] cache MISS layer '${sel.layer}': will call Fal.ai`)
+          return { sel, hit: false as const, r2Key: null }
+        }),
+      )
+
+      const cachedHits = cacheChecks.filter(c => c.hit)
+      const toGenerate = cacheChecks.filter(c => !c.hit).map(c => c.sel)
+
+      // Run only the uncached layers through Fal.ai; fetch result bytes and store in R2
+      const newGenResults = await Promise.all(
+        toGenerate.map(async (sel) => {
+          const falUrl = await falSubscribe(falKey, 'fal-ai/flux-2-pro', {
             prompt: sel.prompt,
             image_size: falImageSize,
-          }),
-        }))
+          })
+          const imgRes = await fetch(falUrl)
+          if (!imgRes.ok) throw new Error(`Failed to fetch Fal result for layer '${sel.layer}': ${imgRes.status}`)
+          const imgBuffer = await imgRes.arrayBuffer()
+          const ct = imgRes.headers.get('content-type') || 'image/jpeg'
+          const layerKey = `${crypto.randomUUID()}.${mimeToExt(ct)}`
+          await r2.put(layerKey, imgBuffer, { httpMetadata: { contentType: ct } })
+          console.log(`[generate] Fal.ai layer '${sel.layer}': stored as ${layerKey}`)
+          return { layer: sel.layer, prompt: sel.prompt!, r2Key: layerKey }
+        }),
+      )
 
-      const generatedUrls = await Promise.all(generateJobs.map(j => j.promise))
+      // Populate the new cache with all generate-mode layer images
+      for (const c of cachedHits)    newCache[c.sel.layer] = { prompt: c.sel.prompt!, r2Key: c.r2Key! }
+      for (const g of newGenResults) newCache[g.layer]     = { prompt: g.prompt,       r2Key: g.r2Key }
 
       // Build Templated.io layers object
       templatedLayers = {}
@@ -144,49 +222,23 @@ export default defineEventHandler(async (event) => {
             console.warn(`[generate] SKIP layer '${sel.layer}': upload mode but no r2Key saved`)
           } else {
             const r2Object = await r2.get(sel.r2Key)
-            if (!r2Object) {
-              throw new Error(`Uploaded image not found in R2 for layer '${sel.layer}': ${sel.r2Key}`)
-            }
-            const imageBytes = await r2Object.arrayBuffer()
+            if (!r2Object) throw new Error(`Uploaded image not found in R2 for layer '${sel.layer}': ${sel.r2Key}`)
             const contentType = r2Object.httpMetadata?.contentType ?? 'image/png'
-            let imageUrl: string
-            if (publicBaseUrl) {
-              // Production: write temp file directly to local R2 binding, serve via this Worker's URL
-              const tmpKey = `tmp-${crypto.randomUUID()}.${mimeToExt(contentType)}`
-              await r2.put(tmpKey, imageBytes, { httpMetadata: { contentType } })
-              tmpKeys.push({ key: tmpKey, remote: false })
-              imageUrl = `${publicBaseUrl}/api/images/${tmpKey}`
-              console.log(`[generate] upload layer '${sel.layer}': staged as ${tmpKey}, url=${imageUrl}`)
-            } else {
-              // Local dev: POST image bytes to production Worker's temp-images API so
-              // Templated.io (an external service) can reach them via a public URL
-              const uploadRes = await fetch(`${tempStorageUrl}/api/temp-images`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': contentType,
-                  'X-Internal-Secret': sessionSecret,
-                  'X-Filename': sel.r2Key,
-                },
-                body: imageBytes,
-              })
-              if (!uploadRes.ok) {
-                const errText = await uploadRes.text()
-                throw new Error(`Temp upload to ${tempStorageUrl} failed: ${uploadRes.status} — ${errText}`)
-              }
-              const { key, url } = await uploadRes.json() as { key: string; url: string }
-              tmpKeys.push({ key, remote: true })
-              imageUrl = url
-              console.log(`[generate] local dev: upload layer '${sel.layer}': staged as ${key} on ${tempStorageUrl}, url=${imageUrl}`)
-            }
-            templatedLayers[sel.layer] = { image_url: imageUrl }
+            templatedLayers[sel.layer] = { image_url: await stageForTemplated(sel.r2Key, contentType) }
           }
         } else if (sel.type === 'image' && sel.imageMode !== 'upload' && !sel.prompt) {
           console.warn(`[generate] SKIP layer '${sel.layer}': generate mode but no prompt saved`)
         }
       }
-      for (const [i, job] of generateJobs.entries()) {
-        templatedLayers[job.layer] = { image_url: generatedUrls[i]! }
+
+      // Stage all generate-mode layer images (cached + newly generated) for Templated.io
+      for (const { layer, r2Key: imgKey } of [
+        ...cachedHits.map(c => ({ layer: c.sel.layer, r2Key: c.r2Key! })),
+        ...newGenResults.map(g => ({ layer: g.layer, r2Key: g.r2Key })),
+      ]) {
+        templatedLayers[layer] = { image_url: await stageForTemplated(imgKey, 'image/jpeg') }
       }
+
       console.log('[generate] templatedLayers =', JSON.stringify(templatedLayers))
     } else {
       // ── Legacy path: hardcoded field mapping ──
@@ -274,7 +326,11 @@ export default defineEventHandler(async (event) => {
 
     const [completed] = await db
       .update(generatedAds)
-      .set({ status: 'complete', r2Key })
+      .set({
+        status: 'complete',
+        r2Key,
+        layerImageCache: Object.keys(newCache ?? {}).length > 0 ? JSON.stringify(newCache) : null,
+      })
       .where(eq(generatedAds.id, genRecord.id))
       .returning()
 

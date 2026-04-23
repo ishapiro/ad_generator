@@ -124,7 +124,8 @@ export const generatedAds = sqliteTable('generated_ads', {
   id:           integer('id').primaryKey({ autoIncrement: true }),
   adConfigId:   integer('ad_config_id').notNull().references(() => adConfigs.id),
   status:       text('status').notNull().default('pending'), // pending | generating | complete | error
-  r2Key:        text('r2_key'),
-  errorMessage: text('error_message'),
-  createdAt:    integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+  r2Key:           text('r2_key'),
+  errorMessage:    text('error_message'),
+  layerImageCache: text('layer_image_cache'), // JSON: { [layer]: { prompt: string; r2Key: string } }
+  createdAt:       integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 })
