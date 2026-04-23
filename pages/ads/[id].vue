@@ -141,6 +141,12 @@
                     {{ layer.type === 'image' ? 'Image' : 'Text' }}
                   </span>
                   <span class="font-medium text-slate-800">{{ layer.layer }}</span>
+                  <span
+                    v-if="layer.type === 'image' && layerRatio(layer.layer)"
+                    class="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500"
+                  >
+                    {{ layerRatio(layer.layer) }}
+                  </span>
                 </div>
 
                 <!-- Card body -->
@@ -175,6 +181,8 @@
                       :saved-prompts="promptLibrary"
                       :profile-id="id"
                       :project-id="config?.projectId ?? undefined"
+                      :layer-width="templateLiveLayers.find(l => l.layer === layer.layer)?.width"
+                      :layer-height="templateLiveLayers.find(l => l.layer === layer.layer)?.height"
                       @update:prompt="layer.prompt = $event"
                       @update:r2-key="layer.r2Key = $event"
                       @update:image-mode="layer.imageMode = $event"
@@ -535,6 +543,8 @@ interface TemplatedLayer {
   layer: string
   type: string
   description?: string
+  width?: number
+  height?: number
 }
 
 interface TemplatedTemplate {
@@ -674,6 +684,18 @@ function takeSnapshot(): string {
 }
 
 const isDirty = computed(() => savedSnapshot.value !== '' && takeSnapshot() !== savedSnapshot.value)
+
+// ── Layer aspect ratio display ──
+function gcd(a: number, b: number): number { return b === 0 ? a : gcd(b, a % b) }
+
+function layerRatio(layerName: string): string {
+  const live = templateLiveLayers.value.find(l => l.layer === layerName)
+  if (!live?.width || !live?.height) return ''
+  const d = gcd(live.width, live.height)
+  const rw = live.width / d
+  const rh = live.height / d
+  return rw <= 20 && rh <= 20 ? `${rw}:${rh}` : `${live.width}×${live.height}`
+}
 
 // ── Collapse state ──
 const layersCollapsed = ref(true)

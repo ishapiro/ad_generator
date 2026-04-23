@@ -119,77 +119,124 @@
       <!-- Currently selected image preview -->
       <div
         v-if="localR2Key"
-        class="relative overflow-hidden rounded-lg border"
+        class="overflow-hidden rounded-lg border"
         :class="selectedImageBroken ? 'border-red-300' : 'border-slate-200'"
-        style="background: repeating-conic-gradient(#e2e8f0 0% 25%, #ffffff 0% 50%) 0 0 / 16px 16px"
       >
-        <img
-          :src="`/api/images/${localR2Key}`"
-          alt="Selected image"
-          class="max-h-48 w-full object-contain"
-          @load="selectedImageBroken = false"
-          @error="selectedImageBroken = true"
-        />
-        <div v-if="selectedImageBroken" class="flex items-center gap-2 bg-red-50 px-3 py-2 text-xs text-red-700">
-          <span class="font-medium">Image not found.</span> Please re-select from the library below.
-        </div>
-        <button
-          type="button"
-          class="absolute right-2 top-2 rounded-full bg-white/90 px-2 py-1 text-xs font-medium text-red-600 shadow hover:bg-white"
-          @click="clearUpload"
+        <div
+          class="relative"
+          style="background: repeating-conic-gradient(#e2e8f0 0% 25%, #ffffff 0% 50%) 0 0 / 16px 16px"
         >
-          Remove
-        </button>
+          <img
+            :src="`/api/images/${localR2Key}`"
+            alt="Selected image"
+            class="max-h-48 w-full object-contain"
+            @load="selectedImageBroken = false"
+            @error="selectedImageBroken = true"
+          />
+          <div v-if="selectedImageBroken" class="flex items-center gap-2 bg-red-50 px-3 py-2 text-xs text-red-700">
+            <span class="font-medium">Image not found.</span> Please re-select from the library below.
+          </div>
+          <button
+            type="button"
+            class="absolute right-2 top-2 rounded-full bg-white/90 px-2 py-1 text-xs font-medium text-red-600 shadow hover:bg-white"
+            @click="clearUpload"
+          >
+            Remove
+          </button>
+        </div>
+
+        <!-- AI fit button -->
+        <div v-if="fitLabel && !selectedImageBroken" class="flex items-center gap-2 border-t border-slate-100 px-3 py-2">
+          <button
+            type="button"
+            :disabled="fitting"
+            class="flex items-center gap-1.5 rounded-md bg-violet-50 px-3 py-1.5 text-xs font-medium text-violet-700 transition hover:bg-violet-100 disabled:pointer-events-none disabled:opacity-50"
+            @click="fitToLayer"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd" />
+            </svg>
+            {{ fitting ? 'Fitting…' : `Fit to ${fitLabel} with AI` }}
+          </button>
+          <p v-if="fitError" class="text-xs text-red-600">{{ fitError }}</p>
+        </div>
       </div>
 
       <!-- Library grid -->
       <div v-if="libraryImages.length" class="space-y-2">
-        <p class="text-xs font-medium text-slate-500">Previously uploaded</p>
+        <div class="flex items-center justify-between gap-2">
+          <p class="text-xs font-medium text-slate-500">
+            Previously uploaded
+            <span class="text-slate-400">({{ filteredLibraryImages.length }}<template v-if="librarySearch"> of {{ libraryImages.length }}</template>)</span>
+          </p>
+        </div>
+        <input
+          v-model="librarySearch"
+          type="search"
+          placeholder="Search by filename…"
+          class="w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        />
         <p v-if="deleteError" class="text-xs text-red-600">{{ deleteError }}</p>
-        <div class="grid grid-cols-4 gap-2">
-          <div
-            v-for="img in libraryImages"
-            :key="img.id"
-            class="group relative aspect-square overflow-hidden rounded-lg border-2 transition"
-            :class="localR2Key === img.r2Key
-              ? 'border-blue-500 ring-2 ring-blue-300'
-              : 'border-slate-200 hover:border-blue-400'"
-            style="background: repeating-conic-gradient(#e2e8f0 0% 25%, #ffffff 0% 50%) 0 0 / 10px 10px"
-          >
-            <!-- Select button -->
-            <button
-              type="button"
-              class="h-full w-full"
-              :title="img.filename"
-              @click="selectLibraryImage(img.r2Key)"
-            >
-              <img
-                :src="`/api/images/${img.r2Key}`"
-                :alt="img.filename"
-                class="h-full w-full object-cover"
-              />
-            </button>
-
-            <!-- Selected checkmark -->
+        <div class="max-h-72 overflow-y-auto rounded-lg">
+          <div class="grid grid-cols-4 gap-2">
             <div
-              v-if="localR2Key === img.r2Key"
-              class="pointer-events-none absolute inset-0 flex items-end justify-start bg-blue-500/20 p-1"
+              v-for="img in filteredLibraryImages"
+              :key="img.id"
+              class="group relative aspect-square overflow-hidden rounded-lg border-2 transition"
+              :class="localR2Key === img.r2Key
+                ? 'border-blue-500 ring-2 ring-blue-300'
+                : 'border-slate-200 hover:border-blue-400'"
+              style="background: repeating-conic-gradient(#e2e8f0 0% 25%, #ffffff 0% 50%) 0 0 / 10px 10px"
             >
-              <span class="rounded-full bg-blue-600 px-1.5 py-0.5 text-xs font-bold text-white">✓</span>
-            </div>
+              <!-- Select button -->
+              <button
+                type="button"
+                class="h-full w-full"
+                :title="img.filename"
+                @click="selectLibraryImage(img.r2Key)"
+              >
+                <img
+                  :src="`/api/images/${img.r2Key}`"
+                  :alt="img.filename"
+                  class="h-full w-full object-cover"
+                />
+              </button>
 
-            <!-- Delete button (appears on hover) -->
-            <button
-              type="button"
-              class="absolute right-1 top-1 rounded-full bg-white/90 p-0.5 text-red-500 opacity-0 shadow transition-opacity hover:bg-white group-hover:opacity-100"
-              title="Delete image"
-              @click.stop="deleteLibraryImage(img)"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-              </svg>
-            </button>
+              <!-- Selected checkmark -->
+              <div
+                v-if="localR2Key === img.r2Key"
+                class="pointer-events-none absolute inset-0 flex items-end justify-start bg-blue-500/20 p-1"
+              >
+                <span class="rounded-full bg-blue-600 px-1.5 py-0.5 text-xs font-bold text-white">✓</span>
+              </div>
+
+              <!-- Delete button (only when no other profile uses this image) -->
+              <button
+                v-if="canDelete(img)"
+                type="button"
+                class="absolute right-1 top-1 rounded-full bg-white/90 p-0.5 text-red-500 opacity-0 shadow transition-opacity hover:bg-white group-hover:opacity-100"
+                title="Delete image"
+                @click.stop="deleteLibraryImage(img)"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+              </button>
+              <!-- In-use lock (shown instead of delete when other profiles reference this image) -->
+              <div
+                v-else-if="img.usedInProfiles.length > 0"
+                class="absolute right-1 top-1 rounded-full bg-white/90 p-0.5 shadow opacity-0 group-hover:opacity-100 transition-opacity"
+                :title="`Used by ${img.usedInProfiles.length} ad profile${img.usedInProfiles.length === 1 ? '' : 's'} — cannot delete`"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-slate-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+                </svg>
+              </div>
+            </div>
           </div>
+          <p v-if="filteredLibraryImages.length === 0 && librarySearch" class="py-4 text-center text-xs text-slate-400">
+            No images match "{{ librarySearch }}"
+          </p>
         </div>
       </div>
 
@@ -229,6 +276,7 @@ interface UploadedImage {
   r2Key: string
   filename: string
   mimeType: string
+  usedInProfiles: Array<{ id: number; name: string }>
   createdAt: Date | null
 }
 
@@ -240,6 +288,8 @@ const props = defineProps<{
   savedPrompts: SavedPrompt[]
   profileId?: number
   projectId?: number
+  layerWidth?: number
+  layerHeight?: number
 }>()
 
 const emit = defineEmits<{
@@ -269,10 +319,24 @@ const localR2Key = computed({
 
 // ── Image library ──
 const libraryImages = ref<UploadedImage[]>([])
+const librarySearch = ref('')
+
+const filteredLibraryImages = computed(() => {
+  const q = librarySearch.value.trim().toLowerCase()
+  if (!q) return libraryImages.value
+  return libraryImages.value.filter(img => img.filename.toLowerCase().includes(q))
+})
+
+function canDelete(img: UploadedImage): boolean {
+  if (img.usedInProfiles.length === 0) return true
+  // Allow delete if the only referencing profile is the current one
+  if (props.profileId && img.usedInProfiles.every(p => p.id === props.profileId)) return true
+  return false
+}
 
 async function loadLibrary() {
   try {
-    libraryImages.value = await $fetch<UploadedImage[]>('/api/uploads')
+    libraryImages.value = await $fetch<UploadedImage[]>('/api/media')
   } catch {
     // non-fatal
   }
@@ -289,6 +353,45 @@ function clearUpload() {
 }
 
 const deleteError = ref('')
+
+// ── AI fit to layer dimensions ──
+function gcd(a: number, b: number): number { return b === 0 ? a : gcd(b, a % b) }
+
+const fitLabel = computed(() => {
+  if (!props.layerWidth || !props.layerHeight) return ''
+  const d = gcd(props.layerWidth, props.layerHeight)
+  const rw = props.layerWidth / d
+  const rh = props.layerHeight / d
+  return rw <= 20 && rh <= 20 ? `${rw}:${rh}` : `${props.layerWidth}×${props.layerHeight}`
+})
+
+const fitting = ref(false)
+const fitError = ref('')
+
+async function fitToLayer() {
+  if (!localR2Key.value || !props.layerWidth || !props.layerHeight) return
+  fitting.value = true
+  fitError.value = ''
+  try {
+    const res = await $fetch<{ r2Key: string; url: string }>('/api/ai/revise-image', {
+      method: 'POST',
+      body: {
+        r2Key: localR2Key.value,
+        instructions: `Adapt this image to fill a ${props.layerWidth}×${props.layerHeight} canvas (${fitLabel.value} aspect ratio). Keep the main subject centered and fully visible. Extend or crop the background naturally to fill any extra space. Do not add text, logos, or watermarks.`,
+        provider: 'gemini',
+        projectId: props.projectId,
+      },
+    })
+    localR2Key.value = res.r2Key
+  } catch (e: unknown) {
+    fitError.value =
+      e && typeof e === 'object' && 'data' in e
+        ? (e as { data: { message?: string } }).data?.message ?? 'Fit failed'
+        : 'Fit failed'
+  } finally {
+    fitting.value = false
+  }
+}
 
 async function deleteLibraryImage(img: UploadedImage) {
   if (!confirm(`Delete "${img.filename}"? This cannot be undone.`)) return
