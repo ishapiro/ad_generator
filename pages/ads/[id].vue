@@ -940,6 +940,19 @@ async function generate() {
   generating.value = true
   errorMsg.value = ''
   try {
+    // Auto-save unsaved changes before generating so the server reads the
+    // current image selections and the media library "in use" state is correct.
+    if (isDirty.value) {
+      if (isTemplateBased.value) {
+        await $fetch(`/api/ad-configs/${id}`, {
+          method: 'PUT',
+          body: { name: form.name, templateLayers: templateLayers.value },
+        })
+      } else {
+        await $fetch(`/api/ad-configs/${id}`, { method: 'PUT', body: form })
+      }
+      savedSnapshot.value = takeSnapshot()
+    }
     const newAd = await $fetch<GeneratedAd>(`/api/ad-configs/${id}/generate`, { method: 'POST' })
     await refresh()
     highlightedAdId.value = newAd.id

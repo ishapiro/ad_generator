@@ -121,12 +121,14 @@ export default defineEventHandler(async (event) => {
     instructions?: string
     provider?: string
     projectId?: number
+    referenceR2Key?: string
   }>(event)
 
   const r2Key = body?.r2Key?.trim()
   const instructions = body?.instructions?.trim()
   const provider = body?.provider === 'fal' ? 'fal' : 'gemini'
   const projectId = body?.projectId ?? null
+  const referenceR2Key = body?.referenceR2Key?.trim() || null
 
   if (!r2Key) throw createError({ statusCode: 400, message: 'r2Key is required' })
   if (!instructions) throw createError({ statusCode: 400, message: 'instructions are required' })
@@ -137,6 +139,17 @@ export default defineEventHandler(async (event) => {
 
   const imageBuffer = await r2Object.arrayBuffer()
   const mimeType = r2Object.httpMetadata?.contentType ?? 'image/jpeg'
+
+  // Fetch reference image if provided
+  let refBuffer: ArrayBuffer | null = null
+  let refMime = 'image/jpeg'
+  if (referenceR2Key) {
+    const refObject = await r2.get(referenceR2Key)
+    if (refObject) {
+      refBuffer = await refObject.arrayBuffer()
+      refMime = refObject.httpMetadata?.contentType ?? 'image/jpeg'
+    }
+  }
 
   let resultBuffer: ArrayBuffer
   let resultMime = 'image/jpeg'
@@ -149,18 +162,22 @@ export default defineEventHandler(async (event) => {
     const resolvedModel = await resolveImageModel(apiKey)
     const model = resolvedModel || FALLBACK_IMAGE_MODEL
 
+    const parts: Array<
+      | { inlineData: { mimeType: string; data: string } }
+      | { text: string }
+    > = [{ inlineData: { mimeType, data: base64Image } }]
+
+    if (refBuffer) {
+      parts.push({ inlineData: { mimeType: refMime, data: arrayBufferToBase64(refBuffer) } })
+      parts.push({
+        text: `The first image is the primary image to modify. The second image is a reference. Apply these changes to the primary image using the reference as guidance: ${instructions}`,
+      })
+    } else {
+      parts.push({ text: `Here is the current image. Please modify it as follows: ${instructions}` })
+    }
+
     const geminiBody = {
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            { inlineData: { mimeType, data: base64Image } },
-            {
-              text: `Here is the current image. Please modify it as follows: ${instructions}`,
-            },
-          ],
-        },
-      ],
+      contents: [{ role: 'user', parts }],
       generationConfig: {
         responseModalities: ['IMAGE'],
         thinkingConfig: { thinkingBudget: 0 },

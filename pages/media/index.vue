@@ -302,10 +302,12 @@
                     v-if="item.folderName"
                     class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500"
                   >{{ item.folderName }}</span>
-                  <span
+                  <button
                     v-if="item.usedInProfiles.length > 0"
-                    class="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700"
-                  >{{ item.usedInProfiles.length }} ad{{ item.usedInProfiles.length === 1 ? '' : 's' }}</span>
+                    type="button"
+                    class="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700 transition-colors hover:bg-amber-200"
+                    @click.stop="openUsagePreview(item)"
+                  >{{ item.usedInProfiles.length }} ad{{ item.usedInProfiles.length === 1 ? '' : 's' }}</button>
                 </div>
 
                 <div v-if="item.keywords.length > 0" class="mt-1 flex flex-wrap gap-1">
@@ -556,6 +558,14 @@
     @revised="onRevised"
   />
 
+  <!-- ── Ad Usage Preview Modal ── -->
+  <AdUsagePreviewModal
+    v-if="usagePreviewItem"
+    v-model="showUsagePreviewModal"
+    :filename="usagePreviewItem.filename"
+    :used-in-profiles="usagePreviewItem.usedInProfiles"
+  />
+
   <!-- ── Folder management modal ── -->
   <div
     v-if="showFolderModal"
@@ -776,6 +786,15 @@ async function onGenerated() {
 // ── Image revision ──
 const reviseR2Key = ref<string | null>(null)
 const showReviseModal = ref(false)
+
+// ── Ad usage preview ──
+const usagePreviewItem = ref<MediaItem | null>(null)
+const showUsagePreviewModal = ref(false)
+
+function openUsagePreview(item: MediaItem) {
+  usagePreviewItem.value = item
+  showUsagePreviewModal.value = true
+}
 
 function openRevise(r2Key: string | null) {
   if (!r2Key) return

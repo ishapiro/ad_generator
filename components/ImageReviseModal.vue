@@ -17,8 +17,16 @@ const error = ref<string | null>(null)
 const revisedR2Key = ref<string | null>(null)
 const revisedUrl = ref<string | null>(null)
 
+const referenceR2Key = ref<string | null>(null)
+const referenceUrl = computed(() =>
+  referenceR2Key.value ? `/api/images/${referenceR2Key.value}` : null,
+)
+const showImagePicker = ref(false)
+const providerSwitchNotice = ref(false)
+
 function close() {
   if (submitting.value) return
+  showImagePicker.value = false
   emit('update:modelValue', false)
 }
 
@@ -28,10 +36,27 @@ function reset() {
   revisedR2Key.value = null
   revisedUrl.value = null
   submitting.value = false
+  referenceR2Key.value = null
+  providerSwitchNotice.value = false
+  showImagePicker.value = false
 }
 
 watch(() => props.modelValue, (open) => {
   if (open) reset()
+})
+
+watch(provider, (p) => {
+  if (p === 'fal' && referenceR2Key.value) {
+    provider.value = 'gemini'
+    providerSwitchNotice.value = true
+  }
+})
+
+watch(referenceR2Key, (key) => {
+  if (key && provider.value === 'fal') {
+    provider.value = 'gemini'
+    providerSwitchNotice.value = true
+  }
 })
 
 async function revise() {
@@ -45,6 +70,7 @@ async function revise() {
         instructions: instructions.value.trim(),
         provider: provider.value,
         projectId: props.projectId,
+        referenceR2Key: referenceR2Key.value,
       },
     })
     revisedR2Key.value = res.r2Key
@@ -128,6 +154,69 @@ function done() {
           </div>
         </div>
 
+        <!-- Reference image -->
+        <div>
+          <label class="mb-2 block text-sm font-semibold text-slate-700">
+            Reference Image
+            <span class="ml-1 font-normal text-slate-400 text-xs">(optional)</span>
+          </label>
+
+          <button
+            v-if="!referenceR2Key"
+            type="button"
+            :disabled="submitting"
+            class="rounded-lg border border-dashed border-slate-300 px-4 py-2 text-sm text-slate-500 transition-colors hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-50"
+            @click="showImagePicker = true"
+          >
+            + Add reference image
+          </button>
+
+          <div v-else class="flex items-center gap-3 rounded-lg border border-slate-200 p-2">
+            <div style="width:64px;height:64px;overflow:hidden;border-radius:0.5rem;flex-shrink:0;">
+              <img
+                :src="referenceUrl"
+                alt="Reference image"
+                style="display:block;width:100%;height:100%;object-fit:cover;max-width:none;"
+              />
+            </div>
+            <div class="flex flex-1 flex-col gap-1">
+              <span class="text-xs font-medium text-slate-700">Reference image selected</span>
+              <div class="flex gap-3">
+                <button
+                  type="button"
+                  :disabled="submitting"
+                  class="text-xs text-blue-600 hover:underline disabled:pointer-events-none disabled:opacity-50"
+                  @click="showImagePicker = true"
+                >
+                  Change
+                </button>
+                <button
+                  type="button"
+                  :disabled="submitting"
+                  class="text-xs text-red-500 hover:underline disabled:pointer-events-none disabled:opacity-50"
+                  @click="referenceR2Key = null"
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <p
+            v-if="providerSwitchNotice"
+            class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700"
+          >
+            Reference images require Gemini. Provider switched automatically.
+            <button
+              type="button"
+              class="ml-2 font-medium underline"
+              @click="providerSwitchNotice = false"
+            >
+              Dismiss
+            </button>
+          </p>
+        </div>
+
         <!-- Instructions -->
         <div>
           <label class="mb-1.5 block text-sm font-semibold text-slate-700">
@@ -187,4 +276,11 @@ function done() {
       </div>
     </div>
   </div>
+
+  <ImagePickerModal
+    v-model="showImagePicker"
+    :project-id="projectId"
+    title="Select Reference Image"
+    @select="(key) => { referenceR2Key = key; showImagePicker = false }"
+  />
 </template>
